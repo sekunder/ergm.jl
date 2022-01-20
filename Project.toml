@@ -1,0 +1,4 @@
+name = "ergm"
+uuid = "caa93091-3dc3-4b2b-9430-1aae38e8753f"
+authors = ["Will Slatton <williamslatton11@gmail.com>", "Alex Kunin <Alex.Kunin@bcm.edu >"]
+version = "0.1.0"
