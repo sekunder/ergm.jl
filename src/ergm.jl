@@ -1,6 +1,6 @@
 module ergm
 
+include("spaces.jl")
 include("sampler.jl")
-export sampler
 
 end

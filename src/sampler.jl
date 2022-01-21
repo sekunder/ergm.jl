@@ -1,32 +1,51 @@
 module sampler
 
-mutable struct GibbsSampler{T}
-    initial_state :: T
-    state :: T
-    ll_calculator
-    burn_in :: Int
-    sample_interval :: Int
+import StatsBase
+using ergm.spaces
+
+export GibbsSampler, sample, SimpleLikelihood
+
+mutable struct GibbsSampler
+    initial_state
+    state
+    likelihood
+    burn_in
+    sample_interval
     
-    function GibbsSampler(
-        initial_state :: T,
-        ll_calculator,
-        burn_in :: Int,
-        sample_interval :: Int
-    ) where {T}
-        new{T}(initial_state, initial_state, ll_calculator, burn_in, sample_interval)
+    function GibbsSampler(initial_state, likelihood, burn_in, sample_interval)
+        sampler = new(initial_state, undef, likelihood, burn_in, sample_interval)
+        restart(sampler)
+        sampler
     end
 end
 
-function gibbs_step(sampler :: GibbsSampler{T}) :: T where {T}
-    # is updating components in a fixed order statistically valid?
-    for i ∈ eachindex(sampler.state)
-        sampler.statistic_calculator()
+function restart(sampler :: GibbsSampler)
+    sampler.state = copy(sampler.initial_state)
+    set(sampler.likelihood, sampler.state)
+end
+
+function gibbs_step(sampler :: GibbsSampler)
+    is = keys(sampler.state)
+    n = length(is)
+
+    for i ∈ is
+        w = zeros(n)
+        d = getdomain(sampler.state, i)
+
+        for (j, x) ∈ enumerate(d)
+            sampler.state[i] = x
+            w[j] = get(sampler.likelihood, i, x)
+        end
+
+        x = StatsBase.sample(d, StatsBase.Weights(w))
+        sampler.state[i] = x
+        update(sampler.likelihood, i, x)
     end
 end
 
-function sample(sampler :: GibbsSampler{T}, n :: Int) :: Vector{T} where {T}
-    sampler.state = sampler.initial_state
-    samples = Vector{T}(undef, n)
+function sample(sampler :: GibbsSampler, n)
+    restart(sampler)
+    samples = []
     
     # burn in to reach equilibrium state
     for _ ∈ 1:sampler.burn_in
@@ -35,7 +54,7 @@ function sample(sampler :: GibbsSampler{T}, n :: Int) :: Vector{T} where {T}
 
     for _ ∈ 1:n
         # draw one sample
-        samples[i] = gibbs_step(sampler)
+        push!(samples, copy(sampler.state))
         
         # throw away some samples to reduce autocorrelation
         for _ ∈ sampler.sample_interval
@@ -44,6 +63,31 @@ function sample(sampler :: GibbsSampler{T}, n :: Int) :: Vector{T} where {T}
     end
     
     samples
+end
+
+mutable struct SimpleLikelihood
+    likelihood_function
+    state
+  
+    function SimpleLikelihood(likelihood_function)
+      new(likelihood_function, undef)
+    end
+end
+
+function set(l :: SimpleLikelihood, state)
+    l.state = copy(state)
+end
+
+function get(l :: SimpleLikelihood, i, x)
+    old_x = l.state[i]
+    l.state[i] = x
+    lv = l.likelihood_function(l.state)
+    l.state[i] = old_x
+    lv
+end
+
+function update(l :: SimpleLikelihood, i, x)
+    l.state[i] = x
 end
 
 end
