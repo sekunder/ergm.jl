@@ -1,14 +1,15 @@
 module spaces
 
 import Base.copy, Base.getindex, Base.setindex!, Base.keys
+import Graphs
 
-export DenseDiGraph, getdomain
+export DiGraph, getdomain
 
-struct DenseDiGraph
+struct DiGraph
     adjacency
     n
     
-    function DenseDiGraph(adjacency :: Matrix{Bool})
+    function DiGraph(adjacency :: AbstractMatrix{Bool})
         m, n = size(adjacency)
         
         if m != n
@@ -19,22 +20,28 @@ struct DenseDiGraph
     end
 end
 
-Base.keys(g :: DenseDiGraph) = [(i, j) for i in 1:g.n for j in 1:g.n if i != j]
+function DiGraph(graph :: Graphs.DiGraph)
+    A = Graphs.LinAlg.symmetrize(Graphs.LinAlg.adjacency_matrix(graph))
+    A = Bool.(A)
+    DiGraph(A)
+end
 
-function Base.getindex(g :: DenseDiGraph, p)
+Base.keys(g :: DiGraph) = [(i, j) for i in 1:g.n for j in 1:g.n if i != j]
+
+function Base.getindex(g :: DiGraph, p)
   i, j = p
   g.adjacency[i, j]
 end
 
-getdomain(g :: DenseDiGraph, i) = [false, true]
+getdomain(g :: DiGraph, i) = [false, true]
 
-function Base.setindex!(g :: DenseDiGraph, v, p)
+function Base.setindex!(g :: DiGraph, v, p)
     i, j = p
     g.adjacency[i, j] = v
 end
 
-function Base.copy(g :: DenseDiGraph)
-  DenseDiGraph(copy(g.adjacency))
+function Base.copy(g :: DiGraph)
+  DiGraph(copy(g.adjacency))
 end
 
 end
