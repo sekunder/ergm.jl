@@ -1,6 +1,6 @@
 module inference
 
-using ergm.sampler, ergm.models, ergm.stats
+using ergm.sampler, ergm.models
 using Statistics
 import StatsBase
 export mcmc_mle
@@ -30,11 +30,9 @@ function mcmc_mle(
     )
 
     α = learning_rate
-    θ = get_params(model)
-    m = length(θ)
-    θs = zeros(gradient_descent_steps + 1, m)
-    θs[1, :] = θ
-    Ls = zeros(gradient_descent_steps)
+    θ = initial_guess
+    θs = [θ]
+    Ls = []
 
     observation_stats = [get_stats(model.stats, o) for o ∈ observations]
     target_Es = mean(reduce(hcat, observation_stats), dims=2)
@@ -55,12 +53,11 @@ function mcmc_mle(
         )
         dθ = target_Es - Es
         θ .+= α * dθ
-        θs[i + 1, :] = θ
-        L = sum(dθ .^ 2)
-        Ls[i] = L
+        L = undef
+        push!(Ls, L)
     end
 
-    θs, Ls
+    Ls
 end
 
 end

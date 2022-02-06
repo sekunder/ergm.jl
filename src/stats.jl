@@ -24,4 +24,8 @@ function get_stats(stats :: SimpleStats)
     stats.stats_function(stats.state)
 end
 
+function get_stats(stats :: SimpleStats, state)
+    stats.stats_function(state)
+end
+
 end

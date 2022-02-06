@@ -2,6 +2,7 @@ module sampler
 
 import StatsBase
 using ergm.spaces, ergm.models
+import ergm.stats
 
 export GibbsSampler, sample
 
@@ -12,7 +13,12 @@ mutable struct GibbsSampler
     burn_in
     sample_interval
     
-    function GibbsSampler(initial_state, model, burn_in, sample_interval)
+    function GibbsSampler(
+            initial_state,
+            model :: ExponentialFamily,
+            burn_in,
+            sample_interval
+    )
         sampler = new(initial_state, undef, model, burn_in, sample_interval)
         restart(sampler)
         sampler
@@ -39,6 +45,11 @@ function gibbs_step(sampler :: GibbsSampler)
             update_state(sampler.model, (i, old_x))
         end
 
+        # Try to avoid going outside Float64
+        # precision when applying exp. Can
+        # exponentiation be avoided here? Can
+        # be avoided for length(d) == 2 but not
+        # sure how to generalize.
         c = (maximum(w) + minimum(w)) / 2
         w = exp.(w .- c)
         x = StatsBase.sample(d, StatsBase.Weights(w))
@@ -50,15 +61,18 @@ end
 function sample(sampler :: GibbsSampler, n)
     restart(sampler)
     samples = []
+    m = length(sampler.model.params)
+    sample_stats = zeros(n, m)
     
     # burn in to reach equilibrium state
     for _ ∈ 1:sampler.burn_in
         gibbs_step(sampler)
     end
 
-    for _ ∈ 1:n
+    for i ∈ 1:n
         # draw one sample
         push!(samples, copy(sampler.state))
+        sample_stats[i, :] = stats.get_stats(sampler.model.stats)
         
         # throw away some samples to reduce autocorrelation
         for _ ∈ sampler.sample_interval
@@ -66,7 +80,7 @@ function sample(sampler :: GibbsSampler, n)
         end
     end
     
-    samples
+    samples, sample_stats
 end
 
 end
