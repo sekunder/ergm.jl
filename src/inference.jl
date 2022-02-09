@@ -13,11 +13,12 @@ function mcmc_estimate_means(
     sample_interval
     )
     # seed MC with one of our samples (may not be the best choice...)
-    s = GibbsSampler(
+    s = ParallelGibbsSampler(
         sampler_initial_state,
         model,
         burn_in,
-        sample_interval
+        sample_interval,
+        Threads.nthreads()
     )
     _, stats = sample(s, estimation_steps)
     mean_stats = mean(stats, dims=1)
@@ -26,7 +27,9 @@ end
 
 function mcmc_mle(
     observations, model :: ExponentialFamily,
-    gradient_descent_steps, estimation_steps, learning_rate
+    gradient_descent_steps,
+    estimation_steps, burn_in, sample_interval,
+    learning_rate,
     )
 
     α = learning_rate
@@ -38,10 +41,6 @@ function mcmc_mle(
 
     observation_stats = [get_stats(model.stats, o) for o ∈ observations]
     target_Es = mean(reduce(hcat, observation_stats), dims=2)
-
-    # need better heuristic
-    burn_in = 10
-    sample_interval = 10
 
     for i ∈ 1:gradient_descent_steps
         # seed sampler with random observation

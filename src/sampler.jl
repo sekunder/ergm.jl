@@ -4,7 +4,7 @@ import StatsBase
 using ergm.spaces, ergm.models
 import ergm.stats
 
-export GibbsSampler, sample
+export GibbsSampler, sample, ParallelGibbsSampler
 
 mutable struct GibbsSampler
     initial_state
@@ -80,6 +80,51 @@ function sample(sampler :: GibbsSampler, n)
         end
     end
     
+    samples, sample_stats
+end
+
+struct ParallelGibbsSampler
+    n_samplers
+    samplers :: Vector{GibbsSampler}
+
+    function ParallelGibbsSampler(
+            initial_state,
+            model :: ExponentialFamily,
+            burn_in,
+            sample_interval,
+            n_samplers
+    )
+        samplers = [
+            GibbsSampler(initial_state, model, burn_in, sample_interval)
+            for _ ∈ 1:n_samplers
+        ]
+        new(n_samplers, samplers)
+    end
+end
+
+function sample(sampler :: ParallelGibbsSampler, n)
+    # split requested samples evenly across chains
+    m, r = divrem(n, sampler.n_samplers)
+    n_per_chain = vcat(
+        fill(m + 1, r),
+        fill(m, sampler.n_samplers - r)
+    )
+    hs = []
+
+    for i ∈ 1:sampler.n_samplers
+        h = Threads.@spawn sample(sampler.samplers[i], n_per_chain[i])
+        push!(hs, h)
+    end
+
+    samples = []
+    sample_stats = []
+
+    for h ∈ hs
+        s, ss = fetch(h)
+        samples = vcat(samples, s)
+        sample_stats = vcat(sample_stats, ss)
+    end
+
     samples, sample_stats
 end
 
