@@ -40,9 +40,7 @@ function gibbs_step(sampler :: GibbsSampler)
         old_x = sampler.state[i]
 
         for (j, x) ∈ enumerate(d)
-            update_state(sampler.model, (i, x))
-            w[j] = log_likelihood(sampler.model)
-            update_state(sampler.model, (i, old_x))
+            w[j] = test_state(sampler.model, (i, x))
         end
 
         # Try to avoid going outside Float64
@@ -95,7 +93,7 @@ struct ParallelGibbsSampler
             n_samplers
     )
         samplers = [
-            GibbsSampler(initial_state, model, burn_in, sample_interval)
+            GibbsSampler(initial_state, copy(model), burn_in, sample_interval)
             for _ ∈ 1:n_samplers
         ]
         new(n_samplers, samplers)
@@ -116,13 +114,16 @@ function sample(sampler :: ParallelGibbsSampler, n)
         push!(hs, h)
     end
 
+    np = length(get_params(sampler.samplers[1].model))
     samples = []
-    sample_stats = []
+    sample_stats = zeros(n, np)
+    j = 1
 
-    for h ∈ hs
+    for (i, h) ∈ enumerate(hs)
         s, ss = fetch(h)
         samples = vcat(samples, s)
-        sample_stats = vcat(sample_stats, ss)
+        sample_stats[j:j + n_per_chain[i] - 1, :] = ss
+        j += n_per_chain[i]
     end
 
     samples, sample_stats

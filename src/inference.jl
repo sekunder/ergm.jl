@@ -1,9 +1,9 @@
 module inference
 
-using ergm.sampler, ergm.models, ergm.stats
+using ergm.sampler, ergm.models, ergm.stats, ergm.optim
 using Statistics
 import StatsBase
-export mcmc_mle
+export mcmc_mle, mcmc_estimate_means
 
 function mcmc_estimate_means(
     sampler_initial_state,
@@ -21,28 +21,23 @@ function mcmc_estimate_means(
         Threads.nthreads()
     )
     _, stats = sample(s, estimation_steps)
-    mean_stats = mean(stats, dims=1)
+    mean_stats = mean(stats, dims=1)'
     mean_stats
 end
 
 function mcmc_mle(
-    observations, model :: ExponentialFamily,
-    gradient_descent_steps,
+    observations, model :: ExponentialFamily, optimizer,
     estimation_steps, burn_in, sample_interval,
-    learning_rate,
     )
 
-    α = learning_rate
-    θ = get_params(model)
-    m = length(θ)
-    θs = zeros(gradient_descent_steps + 1, m)
-    θs[1, :] = θ
-    Ls = zeros(gradient_descent_steps)
+    m = length(get_params(model))
+    θs = []
+    Ls = []
 
-    observation_stats = [get_stats(model.stats, o) for o ∈ observations]
-    target_Es = mean(reduce(hcat, observation_stats), dims=2)
+    observation_stats = hcat([get_stats(model.stats, o) for o ∈ observations]...)
+    target_Es = mean(observation_stats, dims=2)
 
-    for i ∈ 1:gradient_descent_steps
+    while !done(optimizer)
         # seed sampler with random observation
         G0 = StatsBase.sample(observations)
         Es = mcmc_estimate_means(
@@ -52,14 +47,15 @@ function mcmc_mle(
             burn_in,
             sample_interval
         )
-        dθ = target_Es - Es
-        θ .+= α * dθ
-        θs[i + 1, :] = θ
+        dθ = Es .- target_Es
+        θ = optim_step(optimizer, dθ)
+        update_params(model, θ)
+        push!(θs, θ)
         L = sum(dθ .^ 2)
-        Ls[i] = L
+        push!(Ls, L)
     end
 
-    θs, Ls
+    hcat(θs...), Ls
 end
 
 end

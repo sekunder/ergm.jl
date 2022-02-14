@@ -2,12 +2,15 @@ module spaces
 
 import Base.copy, Base.getindex, Base.setindex!, Base.keys
 import Graphs
+using SparseArrays
+using LinearAlgebra
 
 export DiGraph, getdomain
 
-struct DiGraph
+mutable struct DiGraph
     adjacency
     n
+    updates_since_dropzeros
     
     function DiGraph(adjacency :: AbstractMatrix{Bool})
         m, n = size(adjacency)
@@ -16,7 +19,8 @@ struct DiGraph
             error("adjacency matrix must be square")
         end
 
-        new(adjacency, n)
+        adjacency[diagind(adjacency)] .= 0
+        new(adjacency, n, 0)
     end
 end
 
@@ -36,8 +40,24 @@ end
 getdomain(g :: DiGraph, i) = [false, true]
 
 function Base.setindex!(g :: DiGraph, v, p)
+    if typeof(g.adjacency) <: AbstractSparseMatrix
+        # if sparse, don't insert zeros unnecessarily
+        if v == 0 && g[p] == 0
+            return
+        end
+
+        # if sparse, occasionally drop zeros
+        if g.updates_since_dropzeros > 500
+            dropzeros!(g.adjacency)
+            g.updates_since_dropzeros = 0
+        end
+
+        g.updates_since_dropzeros += 1
+    end
+
     i, j = p
     g.adjacency[i, j] = v
+
 end
 
 function Base.copy(g :: DiGraph)

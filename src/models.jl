@@ -2,7 +2,7 @@ module models
 
 import ergm.stats
 
-export ExponentialFamily, get_params, update_params, log_likelihood, set_state, update_state
+export ExponentialFamily, get_params, update_params, log_likelihood, set_state, update_state, test_state
 
 mutable struct ExponentialFamily
     stats
@@ -31,6 +31,15 @@ end
 
 function update_state(model :: ExponentialFamily, update)
     stats.update_state(model.stats, update)
+end
+
+function test_state(model :: ExponentialFamily, update)
+    test_stats = stats.test_state(model.stats, update)
+    sum(model.params .* test_stats)
+end
+
+function Base.copy(model :: ExponentialFamily)
+    ExponentialFamily(copy(model.stats), copy(model.params))
 end
 
 end
