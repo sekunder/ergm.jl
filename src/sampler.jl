@@ -60,7 +60,7 @@ function sample(sampler :: GibbsSampler, n)
     restart(sampler)
     samples = []
     m = length(sampler.model.params)
-    sample_stats = zeros(n, m)
+    sample_stats = zeros(m, n)
     
     # burn in to reach equilibrium state
     for _ ∈ 1:sampler.burn_in
@@ -70,7 +70,7 @@ function sample(sampler :: GibbsSampler, n)
     for i ∈ 1:n
         # draw one sample
         push!(samples, copy(sampler.state))
-        sample_stats[i, :] = stats.get_stats(sampler.model.stats)
+        sample_stats[:, i] = stats.get_stats(sampler.model.stats)
         
         # throw away some samples to reduce autocorrelation
         for _ ∈ sampler.sample_interval
@@ -116,13 +116,13 @@ function sample(sampler :: ParallelGibbsSampler, n)
 
     np = length(get_params(sampler.samplers[1].model))
     samples = []
-    sample_stats = zeros(n, np)
+    sample_stats = zeros(np, n)
     j = 1
 
     for (i, h) ∈ enumerate(hs)
         s, ss = fetch(h)
         samples = vcat(samples, s)
-        sample_stats[j:j + n_per_chain[i] - 1, :] = ss
+        sample_stats[:, j:j + n_per_chain[i] - 1] = ss
         j += n_per_chain[i]
     end
 

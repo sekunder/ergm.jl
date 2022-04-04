@@ -3,59 +3,51 @@ module inference
 using ergm.sampler, ergm.models, ergm.stats, ergm.optim
 using Statistics
 import StatsBase
-export mcmc_mle, mcmc_estimate_means
-
-function mcmc_estimate_means(
-    sampler_initial_state,
-    model :: ExponentialFamily,
-    estimation_steps,
-    burn_in,
-    sample_interval
-    )
-    # seed MC with one of our samples (may not be the best choice...)
-    s = ParallelGibbsSampler(
-        sampler_initial_state,
-        model,
-        burn_in,
-        sample_interval,
-        Threads.nthreads()
-    )
-    _, stats = sample(s, estimation_steps)
-    mean_stats = mean(stats, dims=1)'
-    mean_stats
-end
+export mcmc_mle, mcmc_mle_from_stats
 
 function mcmc_mle(
     observations, model :: ExponentialFamily, optimizer,
-    estimation_steps, burn_in, sample_interval,
-    )
+    estimation_steps, burn_in, sample_interval)
+    observation_stats = hcat([get_stats(model.stats, o) for o ∈ observations]...)
+    target_Es = mean(observation_stats, dims=2)[:, 1]
+    # seed sampler with observations
+    mcmc_mle_from_stats(target_Es, observations, model, optimizer, estimation_steps, burn_in, sample_interval)
+end
+
+function mcmc_mle_from_stats(
+    target_Es, sampler_seeds, model :: ExponentialFamily, optimizer,
+    estimation_steps, burn_in, sample_interval)
 
     m = length(get_params(model))
     θs = []
     Ls = []
-
-    observation_stats = hcat([get_stats(model.stats, o) for o ∈ observations]...)
-    target_Es = mean(observation_stats, dims=2)
+    Es = []
 
     while !done(optimizer)
-        # seed sampler with random observation
-        G0 = StatsBase.sample(observations)
-        Es = mcmc_estimate_means(
+        G0 = StatsBase.sample(sampler_seeds)
+        s = ParallelGibbsSampler(
             G0,
             model,
-            estimation_steps,
             burn_in,
-            sample_interval
+            sample_interval,
+            Threads.nthreads()
         )
-        dθ = Es .- target_Es
-        θ = optim_step(optimizer, dθ)
+        _, ss = sample(s, estimation_steps)
+        push!(Es, mean(ss, dims=2))
+        θ = optim_step(optimizer, ss, target_Es)
         update_params(model, θ)
         push!(θs, θ)
-        L = sum(dθ .^ 2)
+        g = mean(ss, dims=2) - target_Es
+        L = sum(g .^ 2)
         push!(Ls, L)
     end
 
-    hcat(θs...), Ls
+    hcat(θs...), Ls, target_Es, Es
+end
+
+function ee(
+    observations, model :: ExponentialFamily,
+    fitting_steps, estimation_steps, learning_rate)
 end
 
 end
