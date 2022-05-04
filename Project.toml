@@ -4,9 +4,11 @@ authors = ["Will Slatton <williamslatton11@gmail.com>", "Alex Kunin <Alex.Kunin@
 version = "0.1.0"
 
 [deps]
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
+Fontconfig = "186bb1d3-e1f7-5a2c-a377-96d770f13627"
 Gadfly = "c91e804a-d5a3-530f-b6f0-dfbca275c004"
 GraphIO = "aa1b3936-2fda-51b9-ab35-c553d3a640a2"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
