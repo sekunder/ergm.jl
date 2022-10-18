@@ -19,7 +19,7 @@ mutable struct Graph
             error("adjacency matrix must be square")
         end
 
-        adjacency = adjacency .| adjacency'
+        adjacency = tril(adjacency) .| tril(adjacency)'
         adjacency[diagind(adjacency)] .= 0
         new(adjacency, n, 0)
     end

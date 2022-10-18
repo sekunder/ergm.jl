@@ -45,9 +45,4 @@ function mcmc_mle_from_stats(
     hcat(θs...), Ls, target_Es, Es
 end
 
-function ee(
-    observations, model :: ExponentialFamily,
-    fitting_steps, estimation_steps, learning_rate)
-end
-
 end

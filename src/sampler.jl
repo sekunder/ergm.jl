@@ -4,7 +4,7 @@ import StatsBase
 using ergm.spaces, ergm.models
 import ergm.stats
 
-export GibbsSampler, sample, ParallelGibbsSampler
+export GibbsSampler, sample, ParallelGibbsSampler, update_sampler_params
 
 mutable struct GibbsSampler
     initial_state
@@ -97,6 +97,12 @@ struct ParallelGibbsSampler
             for _ ∈ 1:n_samplers
         ]
         new(n_samplers, samplers)
+    end
+end
+
+function update_sampler_params(parallel_sampler :: ParallelGibbsSampler, params)
+    for sampler ∈ parallel_sampler.samplers
+        update_params(sampler.model, params)
     end
 end
 
