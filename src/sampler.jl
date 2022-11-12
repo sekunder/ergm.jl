@@ -1,108 +1,88 @@
 module sampler
 
 import StatsBase
-using ergm.spaces, ergm.models
-import ergm.stats
+using ergm.models
+using ergm.spaces
+using ergm.stats
 
-export GibbsSampler, sample, ParallelGibbsSampler, update_sampler_params
+export GibbsSampler, sample, ParallelGibbsSampler, update_sampler_params, sample_stats
 
-mutable struct GibbsSampler
-    initial_state
+struct GibbsSampler
+    model :: ERGM
     state
-    model
     burn_in
     sample_interval
-    
-    function GibbsSampler(
-            initial_state,
-            model :: ExponentialFamily,
-            burn_in,
-            sample_interval
-    )
-        sampler = new(initial_state, undef, model, burn_in, sample_interval)
-        restart(sampler)
-        sampler
+end
+
+function GibbsSampler(model :: ERGM; burn_in, sample_interval)
+    state = empty(model.sample_space)
+    set_state(model.stats, state)
+    GibbsSampler(model, state, burn_in, sample_interval)
+end
+
+"""
+Take on step along the Markov chain underlying the Gibbs sampler.
+At most one edge will be toggled during this step.
+"""
+function gibbs_step(s :: GibbsSampler)
+    # choose edge uniformly and propose toggling it
+    index = random_index(s.model.sample_space)
+    odds = conditional_log_odds(s.model, index)
+
+    # sample new value from model distribution conditioned
+    # on all indices but i
+    if rand() < 1 / (1 + exp(-odds))
+        s.state[index] = 1
+        apply_update(s.model.stats, (index, 1))
+    else
+        s.state[index] = 0
+        apply_update(s.model.stats, (index, 0))
     end
 end
 
-function restart(sampler :: GibbsSampler)
-    sampler.state = copy(sampler.initial_state)
-    set_state(sampler.model, sampler.state)
-end
+"""
+Draw num_samples approximately independent samples from the model.
 
-function gibbs_step(sampler :: GibbsSampler)
-    is = keys(sampler.state)
-    n = length(is)
-
-    for i ∈ is
-        d = getdomain(sampler.state, i)
-        w = zeros(length(d))
-        old_x = sampler.state[i]
-
-        for (j, x) ∈ enumerate(d)
-            w[j] = test_state(sampler.model, (i, x))
-        end
-
-        # Try to avoid going outside Float64
-        # precision when applying exp. Can
-        # exponentiation be avoided here? Can
-        # be avoided for length(d) == 2 but not
-        # sure how to generalize.
-        c = (maximum(w) + minimum(w)) / 2
-        w = exp.(w .- c)
-        x = StatsBase.sample(d, StatsBase.Weights(w))
-        sampler.state[i] = x
-        update_state(sampler.model, (i, x))
-    end
-end
-
-function sample(sampler :: GibbsSampler, n)
-    restart(sampler)
-    samples = []
-    m = length(sampler.model.params)
-    sample_stats = zeros(m, n)
+Returns
+-------
+sample_graphs: Vector of approximately independent graphs sampled from the model.
+sample_stats: Matrix of sufficient statistics for each sample. The sufficient
+    statistics of sample_graphs[i] are the vector sample_stats[:, i].
+"""
+function sample(s :: GibbsSampler, num_samples)
+    num_params = length(s.model.params)
+    sample_graphs = []
+    sample_stats = zeros(num_params, num_samples)
     
     # burn in to reach equilibrium state
-    for _ ∈ 1:sampler.burn_in
-        gibbs_step(sampler)
+    for _ ∈ 1:s.burn_in
+        gibbs_step(s)
     end
 
-    for i ∈ 1:n
+    for i ∈ 1:num_samples
         # draw one sample
-        push!(samples, copy(sampler.state))
-        sample_stats[:, i] = stats.get_stats(sampler.model.stats)
+        push!(sample_graphs, copy(s.state))
+        sample_stats[:, i] = get_stats(s.model.stats)
         
         # throw away some samples to reduce autocorrelation
-        for _ ∈ sampler.sample_interval
-            gibbs_step(sampler)
+        for _ ∈ s.sample_interval
+            gibbs_step(s)
         end
     end
     
-    samples, sample_stats
+    sample_graphs, sample_stats
 end
 
 struct ParallelGibbsSampler
     n_samplers
     samplers :: Vector{GibbsSampler}
 
-    function ParallelGibbsSampler(
-            initial_state,
-            model :: ExponentialFamily,
-            burn_in,
-            sample_interval,
-            n_samplers
-    )
+    function ParallelGibbsSampler(model :: ERGM, burn_in, sample_interval, n_samplers)
         samplers = [
-            GibbsSampler(initial_state, copy(model), burn_in, sample_interval)
+            GibbsSampler(copy(model), burn_in, sample_interval)
             for _ ∈ 1:n_samplers
         ]
         new(n_samplers, samplers)
-    end
-end
-
-function update_sampler_params(parallel_sampler :: ParallelGibbsSampler, params)
-    for sampler ∈ parallel_sampler.samplers
-        update_params(sampler.model, params)
     end
 end
 
@@ -120,19 +100,19 @@ function sample(sampler :: ParallelGibbsSampler, n)
         push!(hs, h)
     end
 
-    np = length(get_params(sampler.samplers[1].model))
-    samples = []
+    np = length(sampler.samplers[1].params)
+    sample_graphs = []
     sample_stats = zeros(np, n)
     j = 1
 
     for (i, h) ∈ enumerate(hs)
-        s, ss = fetch(h)
-        samples = vcat(samples, s)
+        Gs, ss = fetch(h)
+        append!(sample_graphs, Gs)
         sample_stats[:, j:j + n_per_chain[i] - 1] = ss
         j += n_per_chain[i]
     end
 
-    samples, sample_stats
+    sample_graphs, sample_stats
 end
 
 end

@@ -1,126 +1,92 @@
 module spaces
 
-import Base.copy, Base.getindex, Base.setindex!, Base.keys
+import Base.copy, Base.getindex, Base.setindex!, Base.empty
 import Graphs
+import StatsBase
 using SparseArrays
 using LinearAlgebra
 
-export Graph, DiGraph, getdomain
+export SparseGraphs, SparseGraph, random_index
 
-mutable struct Graph
+"""
+Defines the space of undirected graphs on a fixed number
+of nodes and backed by sparse graph representations.
+"""
+struct SparseGraphs
+    number_of_nodes :: Int64
+end
+
+"""
+Return an empty graph belonging to this space. That is,
+an empty sparse undirected graph on n nodes.
+"""
+function Base.empty(space :: SparseGraphs)
+    n = space.number_of_nodes
+    SparseGraph(spzeros(Int64, n, n))
+end
+
+"""
+Sample the index of an edge uniformly. The edge need not actually be present.
+"""
+function random_index(space :: SparseGraphs)
+    n = space.number_of_nodes
+    index = StatsBase.sample(1:n, 2, replace=false)
+    tuple(sort(index)...)
+end
+
+"""
+Defines one particular undirected sparse graph corresponding
+to the SparseGraphs space defined above.
+"""
+mutable struct SparseGraph
     adjacency
-    n
     updates_since_dropzeros
     
-    function Graph(adjacency :: AbstractMatrix{Bool})
+    """
+    Initialize sparse graph from sparse adjacency matrix.
+    """
+    function SparseGraph(adjacency :: SparseMatrixCSC{Int64, Int64})
         m, n = size(adjacency)
         
         if m != n
-            error("adjacency matrix must be square")
+            error("Adjacency matrix must be square.")
         end
 
+        # ensure adjacency matrix is symmetric
         adjacency = tril(adjacency) .| tril(adjacency)'
         adjacency[diagind(adjacency)] .= 0
-        new(adjacency, n, 0)
+
+        new(adjacency, 0)
     end
 end
 
-function Graph(graph :: Graphs.Graph)
-    A = Graphs.LinAlg.symmetrize(Graphs.LinAlg.adjacency_matrix(graph))
-    A = Bool.(A)
-    DiGraph(A)
-end
-
-Base.keys(g :: Graph) = [(i, j) for i in 1:g.n for j in 1:i-1]
-
-function Base.getindex(g :: Graph, p)
-  i, j = p
+function Base.getindex(g :: SparseGraph, index) :: Int64
+  i, j = index
   g.adjacency[i, j]
 end
 
-getdomain(g :: Graph, i) = [false, true]
-
-function Base.setindex!(g :: Graph, v, p)
-    if typeof(g.adjacency) <: AbstractSparseMatrix
-        # if sparse, don't insert zeros unnecessarily
-        if v == 0 && g[p] == 0
-            return
-        end
-
-        # if sparse, occasionally drop zeros
-        if g.updates_since_dropzeros > 500
-            dropzeros!(g.adjacency)
-            g.updates_since_dropzeros = 0
-        end
-
-        g.updates_since_dropzeros += 1
+function Base.setindex!(g :: SparseGraph, value, index)
+    # don't insert zeros unnecessarily
+    if value == 0 && g[index] == 0
+        return
     end
 
-    i, j = p
-    g.adjacency[i, j] = v
-    g.adjacency[j, i] = v
-
-end
-
-function Base.copy(g :: Graph)
-  Graph(copy(g.adjacency))
-end
-
-mutable struct DiGraph
-    adjacency
-    n
-    updates_since_dropzeros
-    
-    function DiGraph(adjacency :: AbstractMatrix{Bool})
-        m, n = size(adjacency)
-        
-        if m != n
-            error("adjacency matrix must be square")
-        end
-
-        adjacency[diagind(adjacency)] .= 0
-        new(adjacency, n, 0)
-    end
-end
-
-function DiGraph(graph :: Graphs.DiGraph)
-    A = Graphs.LinAlg.adjacency_matrix(graph)
-    A = Bool.(A)
-    DiGraph(A)
-end
-
-Base.keys(g :: DiGraph) = [(i, j) for i in 1:g.n for j in 1:g.n if i != j]
-
-function Base.getindex(g :: DiGraph, p)
-  i, j = p
-  g.adjacency[i, j]
-end
-
-getdomain(g :: DiGraph, i) = [false, true]
-
-function Base.setindex!(g :: DiGraph, v, p)
-    if typeof(g.adjacency) <: AbstractSparseMatrix
-        # if sparse, don't insert zeros unnecessarily
-        if v == 0 && g[p] == 0
-            return
-        end
-
-        # if sparse, occasionally drop zeros
-        if g.updates_since_dropzeros > 500
-            dropzeros!(g.adjacency)
-            g.updates_since_dropzeros = 0
-        end
-
-        g.updates_since_dropzeros += 1
+    # occasionally drop explicit zeros
+    if g.updates_since_dropzeros > 500
+        dropzeros!(g.adjacency)
+        g.updates_since_dropzeros = 0
     end
 
-    i, j = p
-    g.adjacency[i, j] = v
+    g.updates_since_dropzeros += 1
+
+    i, j = index
+    g.adjacency[i, j] = value
+    g.adjacency[j, i] = value
 
 end
 
-function Base.copy(g :: DiGraph)
-  DiGraph(copy(g.adjacency))
+function Base.copy(g :: SparseGraph)
+  SparseGraph(copy(g.adjacency))
 end
 
 end

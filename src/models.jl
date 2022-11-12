@@ -1,45 +1,60 @@
 module models
 
-import ergm.stats
+using ergm.spaces
+using ergm.stats
 
-export ExponentialFamily, get_params, update_params, log_likelihood, set_state, update_state, test_state
+export ERGM, log_likelihood, conditional_log_odds
 
-mutable struct ExponentialFamily
+"""
+Exponential Random Graph Model.
+
+sample_space: the space of graphs to consider, for example SparseGraph(50) for
+sparse, undirected graphs on 50 nodes.
+
+stats: object from ergm.stats for computing sufficient statistics and
+updating them as graph edges are toggled
+
+params: natural parameters for each statistic returned by stats
+"""
+mutable struct ERGM
+    sample_space
     stats
-    params
+    params :: Vector{Float64}
 
-    function ExponentialFamily(stats, params)
-        new(stats, params)
+    function ERGM(sample_space, stats_type, params, covariates...)
+        stats = stats_type(sample_space, covariates...)
+        new(sample_space, stats, params)
     end
 end
 
-function get_params(model :: ExponentialFamily)
-    model.params
+"""
+Compute log likelihood (up to an additive constant).
+
+Note that the model.stats object is stateful, and the
+computed likelihood is for the current graph included
+in the state of model.stats.
+"""
+function log_likelihood(model :: ERGM)
+    sum(model.params .* get_stats(model.stats))
 end
 
-function update_params(model :: ExponentialFamily, params)
-    model.params = params
+"""
+Compute log odds conditioned on all but one edge.
+
+In particular, compute the value:
+log P(x_i = 1 | x_j for j ≠ i, θ) - log P(x_i = 0 | x_j for j ≠ i, θ),
+where P denotes the model PMF and the values x_j for j ≠ i depend on the
+state of model.stats.
+
+index: index i that is not conditioned on
+"""
+function conditional_log_odds(model :: ERGM, index)
+    δstats = test_update(model.stats, (index, 1)) - test_update(model.stats, (index, 0))
+    sum(model.params .* δstats)
 end
 
-function log_likelihood(model :: ExponentialFamily)
-    sum(model.params .* stats.get_stats(model.stats))
-end
-
-function set_state(model :: ExponentialFamily, state)
-    stats.set_state(model.stats, state)
-end
-
-function update_state(model :: ExponentialFamily, update)
-    stats.update_state(model.stats, update)
-end
-
-function test_state(model :: ExponentialFamily, update)
-    test_stats = stats.test_state(model.stats, update)
-    sum(model.params .* test_stats)
-end
-
-function Base.copy(model :: ExponentialFamily)
-    ExponentialFamily(copy(model.stats), copy(model.params))
+function Base.copy(model :: ERGM)
+    ERGM(sample_space, copy(model.stats), copy(model.params))
 end
 
 end
