@@ -22,8 +22,8 @@ mutable struct EdgeTriangle
             empty(space),
             0,
             0,
-            n * (n - 1) ÷ 2,
-            n * (n - 1) * (n - 2) ÷ 6,
+            n, # n * (n - 1) ÷ 2,
+            n, # n * (n - 1) * (n - 2) ÷ 6,
             Dict()
         )
     end

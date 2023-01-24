@@ -1,6 +1,7 @@
 using ergm.spaces
 using SparseArrays
 using LinearAlgebra
+import Base
 
 mutable struct LocalEdgeTriangle
     graph :: SparseGraph
@@ -12,27 +13,41 @@ mutable struct LocalEdgeTriangle
     cached_counts
     node_positions
     local_radius
+end
     
-    function LocalEdgeTriangle(space, node_positions, local_radius)
-        if !(space isa SparseGraphs)
-            print("LocalEdgeTriangle statistics only supported \
-                  for undirected sparse graphs.")
-        end
-
-        n = space.number_of_nodes
-
-        new(
-            empty(space),
-            empty(space),
-            0,
-            0,
-            n * (n - 1) ÷ 2,
-            n * (n - 1) * (n - 2) ÷ 6,
-            Dict(),
-            node_positions,
-            local_radius
-        )
+function LocalEdgeTriangle(space, node_positions, local_radius)
+    if !(space isa SparseGraphs)
+        print("LocalEdgeTriangle statistics only supported \
+              for undirected sparse graphs.")
     end
+
+    n = space.number_of_nodes
+
+    LocalEdgeTriangle(
+        empty(space),
+        empty(space),
+        0,
+        0,
+        n, # n * (n - 1) ÷ 2,
+        n, # n * (n - 1) * (n - 2) ÷ 6,
+        Dict(),
+        node_positions,
+        local_radius
+    )
+end
+
+function Base.copy(s :: LocalEdgeTriangle)
+    LocalEdgeTriangle(
+        copy(s.graph),
+        copy(s.local_graph),
+        s.edge_count,
+        s.triangle_count,
+        s.max_edge_count,
+        s.max_triangle_count,
+        copy(s.cached_counts),
+        copy(s.node_positions),
+        s.local_radius
+    )
 end
 
 function stat_count(s :: LocalEdgeTriangle)
@@ -74,9 +89,9 @@ function test_update(s :: LocalEdgeTriangle, update; counts=false)
         [s.edge_count, s.triangle_count]
     else
         LA = s.local_graph.adjacency
-        new_edge_count = s.edge_count + x - old_x
         X = s.node_positions
         l = norm(X[i, :] - X[j, :]) < s.local_radius
+        new_edge_count = s.edge_count + (x - old_x)
         new_triangle_count = s.triangle_count + l * (x - old_x) * sum(LA[i, :] .* LA[:, j])
         [new_edge_count, new_triangle_count]
     end

@@ -4,68 +4,165 @@ using ergm.sampler, ergm.models, ergm.stats, ergm.optim, ergm.spaces
 using Statistics
 using Random
 import StatsBase
-using Infiltrator
-export mcmc_mle, mcmc_mle_from_stats, ee
+export ee, cd
+using ProgressMeter
 
-function ee(observations, stats, estimation_steps, θ0, iterations, learning_rate)
-    observations = shuffle(observations)
-    # note that stats will have state set to last observation in shuffled
-    # order, effectively initializing the Markov chain with a random observation
-    observation_stats = hcat([get_stats(stats, o) for o ∈ observations]...)
-    target_Es = mean(observation_stats, dims=2)[:, 1]
-    n = observations[1].n
-    p = stat_count(stats)
-    θ = copy(θ0)
+function ee(model, initial_state, target_Es, estimation_steps, c2s)
+    iterations = length(c2s)
+    c1 = 1e-2
+    p1 = 2
+    p2 = 1/2
+    set_state(model.stats, initial_state)
+    state = initial_state
+    n = model.sample_space.number_of_nodes
+    p = stat_count(model.stats)
+    θ = model.params
     θs = zeros(iterations, p)
     Es = zeros(iterations, p)
     Ls = zeros(iterations)
+    fs = nothing
     
     # per-parameter learning rate
-    D = fill(learning_rate, p)
+    D = ones(p)
+    Ds = nothing
 
     println("Starting inference...")
 
-    for it ∈ 1:iterations
+    @showprogress for it ∈ 1:iterations
         E = zeros(p)
         dt = zeros(p)
-        println("iter $it...")
 
         for _ ∈ 1:estimation_steps
             # propose uniform new edge value for uniform edge
-            i = tuple(StatsBase.sample(1:n, 2, replace=false)...)
-            old_x = stats.graph[i]
-            x = !old_x
+            i = random_index(model.sample_space)
+            old_x = state[i]
+            x = 1 - old_x
 
             # acceptance probability
-            dstats = test_update(stats, (i, x)) - get_stats(stats)
+            dstats = test_update(model.stats, (i, x)) - get_stats(model.stats)
             dll = sum(θ .* dstats)
             α = min(1, exp(dll))
 
             if rand() < α
-                apply_update(stats, (i, x))
+                state[i] = x
+                apply_update(model.stats, (i, x))
             end
             
-            E += get_stats(stats)
+            E += get_stats(model.stats)
         end
 
-        dt = get_stats(stats) - target_Es
-        θ -= D .* sign.(dt) .* dt .^ 2
+        dt = get_stats(model.stats) - target_Es
+        θ -= D .* sign.(dt) .* dt .^ p1
         θs[it, :] = θ
-        E /= iterations
+        E /= estimation_steps
         Es[it, :] = E
         Ls[it] = sum((E - target_Es) .^ 2) / p
         
         # adapt learning rates every a iterations
-        a = 100
+        a = 500
+
         if it % a == 0
+            c2 = c2s[it]
             ix = (it - a + 1):it
             θ_m = mean(θs[ix, :], dims=1)[1, :]
             θ_sd = std(θs[ix, :], dims=1)[1, :]
-            D .*= sqrt.(1e0 * max.(abs.(θ_m), 1e-2) ./ θ_sd)
+            D .*= (c2 * max.(abs.(θ_m), c1) ./ θ_sd) .^ p2
+            f = θ_sd ./ (c2 * max.(abs.(θ_m), c1))
+
+            if fs == nothing
+                fs = f'
+                Ds = D'
+            else
+                fs = vcat(fs, f')
+                Ds = vcat(Ds, D')
+            end
         end
     end
     
-    θs, Ls, target_Es, Es
+    θs, Ls, target_Es, Es, fs, Ds
+end
+
+function cd(model, initial_state, target_Es, estimation_steps, iterations)
+    c1 = 1e-2
+    c2 = 1e-3
+    p1 = 2
+    p2 = 1/2
+    set_state(model.stats, initial_state)
+    state = initial_state
+    n = model.sample_space.number_of_nodes
+    p = stat_count(model.stats)
+    θ = model.params
+    θs = zeros(iterations, p)
+    Es = zeros(iterations, p)
+    Ls = zeros(iterations)
+    fs = nothing
+    
+    # per-parameter learning rate
+    D = ones(p)
+    Ds = nothing
+
+    println("Starting inference...")
+
+    initial_stats = model.stats
+
+    for it ∈ 1:iterations
+        E = zeros(p)
+        dt = zeros(p)
+
+        state = copy(initial_state)
+        model.stats = copy(initial_stats)
+
+        dzsum = zeros(p)
+
+        for _ ∈ 1:estimation_steps
+            # propose uniform new edge value for uniform edge
+            i = random_index(model.sample_space)
+            old_x = state[i]
+            x = 1 - old_x
+
+            # acceptance probability
+            dstats = test_update(model.stats, (i, x)) - get_stats(model.stats)
+            dll = sum(θ .* dstats)
+            α = min(1, exp(dll))
+
+            if rand() < α
+                dzsum .+= abs.(dstats)
+                state[i] = x
+                apply_update(model.stats, (i, x))
+            end
+            
+            E += get_stats(model.stats)
+        end
+
+        dt = get_stats(model.stats) - target_Es
+        println(dzsum)
+        da = 10 ./ dzsum .^ 2
+        θ -= da .* sign.(dt) .* dt .^ p1
+        θs[it, :] = θ
+        E /= estimation_steps
+        Es[it, :] = E
+        Ls[it] = sum((E - target_Es) .^ 2) / p
+        
+        # adapt learning rates every a iterations
+        # a = 1000
+        # if it % a == 0
+        #     ix = (it - a + 1):it
+        #     θ_m = mean(θs[ix, :], dims=1)[1, :]
+        #     θ_sd = std(θs[ix, :], dims=1)[1, :]
+        #     D .*= (c2 * max.(abs.(θ_m), c1) ./ θ_sd) .^ p2
+        #     f = θ_sd ./ (c2 * max.(abs.(θ_m), c1))
+
+        #     if fs == nothing
+        #         fs = f'
+        #         Ds = D'
+        #     else
+        #         fs = vcat(fs, f')
+        #         Ds = vcat(Ds, D')
+        #     end
+        # end
+    end
+    
+    θs, Ls, target_Es, Es, fs, Ds
 end
 
 end

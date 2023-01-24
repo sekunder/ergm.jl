@@ -50,7 +50,7 @@ sample_stats: Matrix of sufficient statistics for each sample. The sufficient
     statistics of sample_graphs[i] are the vector sample_stats[:, i].
 """
 function sample(s :: GibbsSampler, num_samples)
-    num_params = length(s.model.params)
+    num_params = stat_count(s.model.stats)
     sample_graphs = []
     sample_stats = zeros(num_params, num_samples)
     
