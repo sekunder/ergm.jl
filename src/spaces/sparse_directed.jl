@@ -1,60 +1,77 @@
 import Base.copy, Base.getindex, Base.setindex!, Base.empty
+import StatsBase
 using SparseArrays
+using LinearAlgebra
 
 export SparseGraphs, SparseGraph, random_index
 
-
 """
 Directed graphs backed by sparse matrices.
+
+This type includes a parameter `n` to specify the number of nodes. These graphs also have no self loops and
+edges are binary. To create an empty graph on `n` nodes, use `SparseDirectedGraph{n}()`. To create
+a graph from a sparse adjacency matrix `adjacency`, use `SparseDirectedGraph(adjacency)`.
+
+Edge indices for this type take the form `(s, t)` where `s::Int` and `t::Int` are the indices of
+the respective source and target nodes of the edge. Node indices are integers `i` in the range `1 ≤ i ≤ n`, where `n`
+is the type paramter specifying the number of nodes in the graph. For example, querying the value of the edge from node
+`1` to node `3` in the graph `x :: SparseDirectedGraph` is accomplished by `getindex(x, (1, 3))` or, equivalently, `x[(1, 3)]`.
 """
-mutable struct SparseDirectedGraph
-    adjacency
-    updates_since_dropzeros
+mutable struct SparseDirectedGraph{n} <: SampleSpace
+    adjacency::SparseMatrixCSC{Bool,Int}
+    updates_since_dropzeros::Int
     
     """
-        SparseDirectedGraph(number_of_nodes :: Int)
+        SparseDirectedGraph{n}()
 
     Initialize empty sparse graph.
     """
-    function SparseDirectedGraph(number_of_nodes::Int)
-        adjacency = spzeros(Int, )
+    function SparseDirectedGraph{n}() where n
+        adjacency = spzeros(Bool, n, n)
+        new{n}(adjacency, 0)
     end
     
     """
-        SparseDirectedGraph(adjacency :: SparseMatrixCSC{Int, Int})
+        SparseDirectedGraph(adjacency :: SparseMatrixCSC{Bool, Int})
 
     Initialize sparse graph from sparse adjacency matrix.
     """
-    function SparseDirectedGraph(adjacency::SparseMatrixCSC{Int,Int})
-        m, n = size(adjacency)
+    function SparseDirectedGraph(adjacency::SparseMatrixCSC{Bool,Int})
+        r, c = size(adjacency)
         
-        if m != n
+        if r != c
             error("Adjacency matrix must be square.")
         end
 
-        # ensure adjacency matrix is symmetric
-        adjacency = tril(adjacency) .| tril(adjacency)'
-        adjacency[diagind(adjacency)] .= 0
+        # clear diagonal (no self-loops allowed)
+        adjacency[diagind(adjacency)] .= false
 
-        new(adjacency, 0)
-    end
+        new{r}(adjacency, 0)
+end
 end
 
-"""
-Sample the index of an edge uniformly. The edge need not actually be present.
-"""
-function random_index(g::SparseDirectedGraph)
-    n = space.number_of_nodes
+function random_index(g::SparseDirectedGraph{n}) where n
     index = StatsBase.sample(1:n, 2, replace=false)
-    tuple(sort(index)...)
+    tuple(index...)
 end
 
-function Base.getindex(g::SparseDirectedGraph, index)::Int
+function Base.getindex(g::SparseDirectedGraph, index::Tuple{Int,Int})::Bool
     i, j = index
+
+    if i == j
+        error("Cannot get diagonal elements in a SparseDirectedGraph.")
+    end
+
     g.adjacency[i, j]
 end
 
-function Base.setindex!(g::SparseDirectedGraph, value, index)
+function Base.setindex!(g::SparseDirectedGraph, value::Bool, index::Tuple{Int,Int})
+    i, j = index
+
+    if i == j
+        error("Cannot set diagonal elements in a SparseDirectedGraph.")
+    end
+
     # don't insert zeros unnecessarily
     if value == 0 && g[index] == 0
         return
@@ -67,13 +84,9 @@ function Base.setindex!(g::SparseDirectedGraph, value, index)
     end
 
     g.updates_since_dropzeros += 1
-
-    i, j = index
     g.adjacency[i, j] = value
-    g.adjacency[j, i] = value
-
 end
 
 function Base.copy(g::SparseDirectedGraph)
-    SparseGraph(copy(g.adjacency))
+    SparseDirectedGraph(copy(g.adjacency))
 end

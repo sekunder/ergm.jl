@@ -6,4 +6,10 @@ export spaces
 include("models/models.jl")
 export models
 
+include("sampling/sampling.jl")
+export sampling
+
+include("inference/inference.jl")
+export inference
+
 end
