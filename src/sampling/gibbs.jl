@@ -3,7 +3,13 @@ using ergm.models
 using Random
 import StatsBase
 using Statistics
-using GLMakie
+
+# avoid loading GLMakie during documentation build
+# on headless GitHub actions server
+if "DISPLAY" ∈ keys(ENV)
+    using GLMakie
+end
+
 using ProgressMeter
 
 struct GibbsSampler
