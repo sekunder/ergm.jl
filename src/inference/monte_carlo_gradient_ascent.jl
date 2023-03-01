@@ -13,6 +13,7 @@ function monte_carlo_gradient_ascent(model::Model, target_statistics::Vector{Flo
         current_statistics = mean(ss, dims=1)[1, :]
         ∇log_likelihood = target_statistics - current_statistics;
         θ += learning_rate * ∇log_likelihood
+        set_parameters(model, θ)
         θs[i, :] = θ
     end
 

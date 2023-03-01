@@ -301,3 +301,11 @@ function apply_update(model::DirectedSpatialTripletModel, index::Tuple{Int, Int}
     model.cached_motif_counts = Dict()
     return nothing
 end
+
+function get_parameters(model::DirectedSpatialTripletModel)::Vector{Float64}
+    model.parameters
+end
+
+function set_parameters(model::DirectedSpatialTripletModel, parameters::Vector{Float64})
+    model.parameters = parameters
+end

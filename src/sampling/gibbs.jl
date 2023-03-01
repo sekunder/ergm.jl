@@ -4,6 +4,7 @@ using Random
 import StatsBase
 using Statistics
 using GLMakie
+using ProgressMeter
 
 struct GibbsSampler
     model::Model
@@ -22,7 +23,7 @@ struct GibbsSampler
     each pair of samples returned with the goal of producing approximately
     independent samples.
     """
-    function GibbsSampler(model::Model; burn_in::Int, sample_interval::Int)
+    function GibbsSampler(model::Model; burn_in::Int=0, sample_interval::Int=0)
         new(model, burn_in, sample_interval)
     end
 end
@@ -39,7 +40,7 @@ function gibbs_step(sampler::GibbsSampler)
     x = !get_state(sampler.model)[i]
     
     # compute acceptance probability of toggle
-    δstats = test_update(sampler.model, i, x)
+    δstats = test_update(sampler.model, i, x) - get_statistics(sampler.model)
     θ = get_parameters(sampler.model)
     δlog_likelihood = sum(θ .* δstats)
     α = min(1, exp(δlog_likelihood))
@@ -50,6 +51,20 @@ function gibbs_step(sampler::GibbsSampler)
     end
 end
 
+function cond_showprogress_helper(c, e)
+    quote
+        if $c
+            @showprogress $e
+        else
+            $e
+        end
+    end
+end
+
+macro cond_showprogress(c, e)
+    esc(cond_showprogress_helper(c, e))
+end
+
 """
 Draw `number_of_samples` approximately independent samples from this ERGM.
 
@@ -57,15 +72,17 @@ Returns the pair `(samples, statistics)` where `samples` is a vector of
 graphs sampled from the ERGM and `statistics` is a matrix such that
 `statistics[i, :]` is a vector of the sufficient statistics of the
 sampled graph `samples[i]`.
+
+Set `progress` to `true` for a progress bar.
 """
-function sample(sampler::GibbsSampler, number_of_samples::Int)
+function sample(sampler::GibbsSampler, number_of_samples::Int; progress::Bool=false)
     # number of model statistics/parameters
     p = length(get_parameters(sampler.model))
     
     samples = []
     statistics = zeros(number_of_samples, p)
 
-    for i ∈ 1:number_of_samples
+    @cond_showprogress progress for i ∈ 1:number_of_samples
         to_skip = if i == 1
             sampler.burn_in
         else

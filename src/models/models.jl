@@ -88,6 +88,8 @@ export Model, get_sample_space, get_state, set_state, get_statistics, test_updat
 # export pre-defined models
 include("simple.jl")
 export SimpleModel
+include("subset.jl")
+export SubsetModel
 include("directed_spatial_triplet.jl")
 export DirectedSpatialTripletModel
 
