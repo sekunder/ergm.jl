@@ -2,15 +2,14 @@ using ergm.models
 using ergm.sampling
 using ProgressMeter
 
-function equilibrium_expectation(model::Model, target_statistics::Vector{Float64}, estimation_steps::Int, fitting_iterations::Int, learning_rate::Float64)
+function equilibrium_expectation(model::Model, target_statistics::Vector{Float64}, estimation_steps::Int, learning_rate::Vector{Float64})
     c1 = 1e-2
-    c2 = 1e-2
     p1 = 2
     p2 = 1/2
-
+    fitting_iterations = length(learning_rate)
     sampler = GibbsSampler(model)
     p = length(get_parameters(model))
-    D = fill(learning_rate, p)
+    D = ones(p)
     θ = get_parameters(model)
     θs = zeros(fitting_iterations + 1, p)
     θs[1, :] = θ
@@ -18,6 +17,8 @@ function equilibrium_expectation(model::Model, target_statistics::Vector{Float64
     Ds[1, :] = D
     
     @showprogress for i ∈ 1:fitting_iterations
+        c2 = learning_rate[i]
+
         for _ ∈ 1:estimation_steps
             gibbs_step(sampler)
         end

@@ -12,10 +12,11 @@ n = 100
 X = randn((n, 3))
 r = 1.0
 full_m = DirectedSpatialTripletModel(X, r, zeros(15))
-m = SubsetModel(full_m, [1, 7])
-θ_gt = [-2e2, 4e1]
+m = SubsetModel(full_m, [1, 8, 9])
+θ_gt = [-1e2, -1e2, 1.1e2]
 set_parameters(m, θ_gt)
 sampler = GibbsSampler(m; burn_in=10 * n^2, sample_interval=n^2)
+println("Sampling ground-truth...")
 gs, ss = sample(sampler, 1000; progress=true)
 Es = mean(ss, dims=1)[1, :]
 p = full_m.motif_normalizations[1] * Es[1] / (n * (n - 1))
@@ -25,10 +26,11 @@ function sample_er(p)
     SparseDirectedGraph(A)
 end
 
-n_samp = 100
-ss_er = zeros(n_samp, 2)
+n_samp = 1000
+ss_er = zeros(n_samp, 3)
 
-for i ∈ 1:n_samp
+println("Sampling Erdos-Renyi...")
+@showprogress for i ∈ 1:n_samp
     set_state(m, sample_er(p))
     ss_er[i, :] = get_statistics(m)
 end
@@ -37,35 +39,51 @@ Es_er = mean(ss_er, dims=1)[1, :]
 println(p)
 println(Es ./ Es_er)
 
-set_parameters(m, zeros(2))
-θs, Ds = equilibrium_expectation(m, Es, 1000, 10000, 1e1)
+set_parameters(m, zeros(3))
+println("Fitting...")
+it = 50000
+lr_start = 3e-2
+lr_end = 1e-3
+lr = lr_start * (lr_end / lr_start) .^ ((0:it-1) ./ (it - 1))
+θs, Ds = equilibrium_expectation(m, Es, 1000, lr)
 
 # try to average away the inherent fluctuations
 # in θ you get with equilibrium expectation
 θ_fit = mean(θs[end-100:end, :], dims=1)[1, :]
 set_parameters(m, θ_fit)
+println("Sampling fitted ERGM...")
 _, ss_fit = sample(sampler, 1000; progress=true)
 
 function plot_results()
     fig = Figure()
-    ax1 = Axis(fig[1, 1])
-    ax1.title = "Global Edge Parameter"
-    lines!(ax1, 1:size(θs, 1), θs[:, 1])
-    hlines!(ax1, θ_gt[1]; color=:red)
-    hlines!(ax1, θ_fit[1]; color=:green)
-    ax2 = Axis(fig[2, 1])
-    ax2.title = "Local 3-Cycle Parameter"
-    lines!(ax2, 1:size(θs, 1), θs[:, 2])
-    hlines!(ax2, θ_gt[2]; color=:red)
-    hlines!(ax2, θ_fit[2]; color=:green)
-    ax3 = Axis(fig[1, 2])
-    ax3.title = "Ground-truth (green) vs Fitted (red) Edge"
-    hist!(ax3, ss[:, 1], color=:green)
-    hist!(ax3, ss_fit[:, 1], color=:red)
-    ax3 = Axis(fig[2, 2])
-    ax3.title = "Ground-truth (green) vs Fitted (red) 3-Cycle"
-    hist!(ax3, ss[:, 2], color=:green)
-    hist!(ax3, ss_fit[:, 2], color=:red)
+    ax = Axis(fig[1, 1])
+    ax.title = "Global Edge Parameter"
+    lines!(ax, 1:size(θs, 1), θs[:, 1])
+    hlines!(ax, θ_gt[1]; color=:red)
+    hlines!(ax, θ_fit[1]; color=:green)
+    ax = Axis(fig[2, 1])
+    ax.title = "Local 030T Parameter"
+    lines!(ax, 1:size(θs, 1), θs[:, 2])
+    hlines!(ax, θ_gt[2]; color=:red)
+    hlines!(ax, θ_fit[2]; color=:green)
+    ax = Axis(fig[3, 1])
+    ax.title = "Local 030C Parameter"
+    lines!(ax, 1:size(θs, 1), θs[:, 3])
+    hlines!(ax, θ_gt[3]; color=:red)
+    hlines!(ax, θ_fit[3]; color=:green)
+
+    ax = Axis(fig[1, 2])
+    ax.title = "Ground-truth (green) vs Fitted (red) Edge"
+    hist!(ax, ss[:, 1], color=:green)
+    hist!(ax, ss_fit[:, 1], color=:red)
+    ax = Axis(fig[2, 2])
+    ax.title = "Ground-truth (green) vs Fitted (red) 030T" 
+    hist!(ax, ss[:, 2], color=:green)
+    hist!(ax, ss_fit[:, 2], color=:red)
+    ax = Axis(fig[3, 2])
+    ax.title = "Ground-truth (green) vs Fitted (red) 030C" 
+    hist!(ax, ss[:, 3], color=:green)
+    hist!(ax, ss_fit[:, 3], color=:red)
     fig
 end
 
