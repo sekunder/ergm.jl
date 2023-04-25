@@ -12,4 +12,7 @@ export sampling
 include("inference/inference.jl")
 export inference
 
+include("data/data.jl")
+export data
+
 end
