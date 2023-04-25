@@ -15,6 +15,7 @@ function equilibrium_expectation(model::Model, target_statistics::Vector{Float64
     θs[1, :] = θ
     Ds = zeros(fitting_iterations + 1, p)
     Ds[1, :] = D
+    fs = nothing
     
     @showprogress for i ∈ 1:fitting_iterations
         c2 = learning_rate[i]
@@ -36,9 +37,16 @@ function equilibrium_expectation(model::Model, target_statistics::Vector{Float64
             ix = (i - a + 1):i
             θ_m = mean(θs[ix, :], dims=1)[1, :]
             θ_sd = std(θs[ix, :], dims=1)[1, :]
-            D .*= (c2 * max.(abs.(θ_m), c1) ./ θ_sd) .^ p2
+            f = (θ_sd ./ max.(abs.(θ_m), c2)) ./ c2
+            D .*= (1 ./ f) .^ p2
+
+            if fs == nothing
+                fs = f'
+            else
+                fs = vcat(fs, f')
+            end
         end
     end
 
-    θs, Ds
+    θs, Ds, fs
 end
