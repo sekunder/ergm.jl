@@ -32,21 +32,24 @@ mutable struct SparseDirectedGraph{n} <: SampleSpace
     end
     
     """
-        SparseDirectedGraph(adjacency :: SparseMatrixCSC{Bool, Int})
+        SparseDirectedGraph(adjacency)
 
     Initialize sparse graph from sparse adjacency matrix.
+
+    Throws an error if `adjacency` can't be converted to `SparseMatrixCSC{Bool,Int}`
     """
-    function SparseDirectedGraph(adjacency::SparseMatrixCSC{Bool,Int})
-        r, c = size(adjacency)
+    function SparseDirectedGraph(adjacency)
+        _adjacency = SparseMatrixCSC{Bool, Int}(adjacency)
+        r, c = size(_adjacency)
         
         if r != c
             error("Adjacency matrix must be square.")
         end
 
         # clear diagonal (no self-loops allowed)
-        adjacency[diagind(adjacency)] .= false
+        adjacency[diagind(_adjacency)] .= false
 
-        new{r}(adjacency, 0)
+        new{r}(_adjacency, 0)
     end
 end
 
