@@ -40,7 +40,7 @@ function equilibrium_expectation(model::Model, target_statistics::Vector{Float64
             f = (θ_sd ./ max.(abs.(θ_m), c2)) ./ c2
             D .*= (1 ./ f) .^ p2
 
-            if fs == nothing
+            if fs === nothing
                 fs = f'
             else
                 fs = vcat(fs, f')

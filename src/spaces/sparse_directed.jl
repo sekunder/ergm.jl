@@ -47,7 +47,7 @@ mutable struct SparseDirectedGraph{n} <: SampleSpace
         adjacency[diagind(adjacency)] .= false
 
         new{r}(adjacency, 0)
-end
+    end
 end
 
 function random_index(g::SparseDirectedGraph{n}) where n
@@ -74,7 +74,7 @@ function Base.setindex!(g::SparseDirectedGraph, value::Bool, index::Tuple{Int,In
 
     # don't insert zeros unnecessarily
     if value == 0 && g[index] == 0
-        return
+        return value
     end
 
     # occasionally drop explicit zeros
