@@ -6,7 +6,7 @@ using LinearAlgebra
 """
 Directed graphs with a preallocated "scaffold" for calculation of graph statistics.
 """
-mutable struct ScaffoldedDirectedGraph{n} <: SampleSpace
+mutable struct ScaffoldedDirectedGraph{N} <: SampleSpace
     scaffold_edges::SparseMatrixCSC{Bool, Int}
     scaffold_tuples::Set{Tuple{Int, Int}}
     other_edges::Set{Tuple{Int, Int}}
@@ -16,9 +16,9 @@ mutable struct ScaffoldedDirectedGraph{n} <: SampleSpace
 
     Initialize empty sparse graph with empty scaffold
     """
-    function ScaffoldedDirectedGraph{n}() where n
-        scaffold_edges = spzeros(Bool, n, n)
-        new{n}(spzeros, Set(), Set())
+    function ScaffoldedDirectedGraph{N}() where N
+        _scaffold_edges = spzeros(Bool, N, N)
+        new{N}(_scaffold_edges, Set(), Set())
     end
 
     """
@@ -26,26 +26,26 @@ mutable struct ScaffoldedDirectedGraph{n} <: SampleSpace
     
     Use the nonzero elements of matrix `scaffold` to allocate a sparse array for the scaffold.
     """
-    function ScaffoldedDirectedGraph(scaffold)
+    function ScaffoldedDirectedGraph(scaffold, extra_edges=Set())
         _scaffold = SparseMatrixCSC(scaffold)
         _scaffold[diagind(_scaffold)] .= false
         dropzeros!(_scaffold)
-        r, c = size(_scaffold)
-        r == c || error("Scaffold matrix must be square.")
+        R, C = size(_scaffold)
+        R == C || error("Scaffold matrix must be square.")
 
         I, J, V = findnz(_scaffold)
         tuples = Set(zip(I,J))
 
-        new{r}(_scaffold, tuples, Set())
+        new{R}(_scaffold, tuples, extra_edges)
     end
 end
 
-function random_index(g::ScaffoldedDirectedGraph{n}) where n
-    index = StatsBase.sample(1:n, 2, replace=false)
+function random_index(g::ScaffoldedDirectedGraph{N}) where N
+    index = StatsBase.sample(1:N, 2, replace=false)
     tuple(index...)
 end
 
-function Base.getindex(g::ScaffoldedDirectedGraph, index)::Bool
+function Base.getindex(g::ScaffoldedDirectedGraph, index...)::Bool
     # i,j = index
     # i == j && return false  # no self-loops
     # check the scaffold matrix then check the other edges
@@ -53,9 +53,9 @@ function Base.getindex(g::ScaffoldedDirectedGraph, index)::Bool
 end
 
 function Base.setindex!(g::ScaffoldedDirectedGraph, value::Bool, index...)
-    length(index) == 2 || error("Can't set index $index")
-    i, j = index
-    i == j && error("Can't set self-loops in ScaffoldedDirectedGraph")
+    # length(index) <= 2 || error("Can't set index $index")
+    # i, j = index
+    length(index) == 2 && index[1] == index[2] && error("Can't set self-loops in ScaffoldedDirectedGraph")
 
     if value
         if index ∈ g.scaffold_tuples
@@ -72,14 +72,10 @@ function Base.setindex!(g::ScaffoldedDirectedGraph, value::Bool, index...)
             delete!(g.other_edges, index)
         end
     end
-    return value
 end
 
-# function Base.setindex!(g::ScaffoldedDirectedGraph, value::Bool, index...)
-#     length(index) == 2 || error("Can't set index $index")
-#     setindex!(g, value, (index[1], index[2]))
-# end
-
 function Base.copy(g::ScaffoldedDirectedGraph)
-    error("Not implemented")
+    ScaffoldedDirectedGraph(copy(g.scaffold_edges), copy(g.other_edges))
+end
+    
 end
