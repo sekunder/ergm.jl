@@ -3,22 +3,22 @@ using DataStructures
 using SparseArrays
 using LinearAlgebra
 
-const exact_to_over_3node  = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1; # 1 empty graph
-                              0 1 2 2 2 2 3 3 3 3 4 4 4 4 5 6; # 2 single edge
-                              0 0 1 0 0 0 1 1 0 0 2 1 1 1 2 3; # 3 single reciprocal
-                              0 0 0 1 0 0 0 1 1 0 1 1 2 1 2 3; # 4 diverging
-                              0 0 0 0 1 0 1 0 1 0 1 2 1 1 2 3; # 5 converging
-                              0 0 0 0 0 1 1 1 1 3 2 2 2 3 4 6; # 6 two step path
-                              0 0 0 0 0 0 1 0 0 0 2 2 0 1 3 6; # 7 single edge into a reciprocal
-                              0 0 0 0 0 0 0 1 0 0 2 0 2 1 3 6; # 8 single edge ouf of a reciprocal
-                              0 0 0 0 0 0 0 0 1 0 0 2 2 1 3 6; # 9 directed clique, diverging to a single edge
-                              0 0 0 0 0 0 0 0 0 1 0 0 0 1 1 2; # 10 directed cycle
-                              0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 3; # 11 reciprocal path
-                              0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 3; # 12 diverging to a reciprocal
-                              0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 3; # 13 converging from a reciprocal
-                              0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 6; # 14 path across a reciprocal
-                              0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 6; # 15 all but one edge
-                              0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1] # 16 all six edges
+const exact_to_over_3node  = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1; # 1  003  empty graph
+                              0 1 2 2 2 2 3 3 3 3 4 4 4 4 5 6; # 2  012  single edge
+                              0 0 1 0 0 0 1 1 0 0 2 1 1 1 2 3; # 3  102  single reciprocal
+                              0 0 0 1 0 0 0 1 1 0 1 1 2 1 2 3; # 4  021D diverging
+                              0 0 0 0 1 0 1 0 1 0 1 2 1 1 2 3; # 5  021U converging
+                              0 0 0 0 0 1 1 1 1 3 2 2 2 3 4 6; # 6  021C two step path
+                              0 0 0 0 0 0 1 0 0 0 2 2 0 1 3 6; # 7  111D single edge into a reciprocal
+                              0 0 0 0 0 0 0 1 0 0 2 0 2 1 3 6; # 8  111U single edge ouf of a reciprocal
+                              0 0 0 0 0 0 0 0 1 0 0 2 2 1 3 6; # 9  030T directed clique, diverging to a single edge
+                              0 0 0 0 0 0 0 0 0 1 0 0 0 1 1 2; # 10 030C directed cycle
+                              0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 3; # 11 201  reciprocal path
+                              0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 3; # 12 120D diverging to a reciprocal
+                              0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 3; # 13 120U converging from a reciprocal
+                              0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 6; # 14 120C path across a reciprocal
+                              0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 6; # 15 210  all but one edge
+                              0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1] # 16 300  all six edges
 const over_to_exact_3node = Matrix{Int}(inv(exact_to_over_3node))
 
 """
@@ -28,7 +28,7 @@ Compute the number of occurrences of each isomorphism class of nonempty three-no
 
 By default, counts subgraph _isomorphisms_, that is, the number of _induced_ copies of each motif.
 To turn off this behavior, pass `isomorphism=false`
-Returns a vector of length 15, which does count the empty triad.
+Returns a vector of length 15, which does not count the empty triad.
 
 # Arguments
 - `A` adjacency matrix for directed graph. `A[i,j]` indicates the present of edge `i -> j`
@@ -41,7 +41,7 @@ of the empty graph E_2 as subgraphs.
 Counting induced subgraphs amounts to applying a fancy variation of the principle of inclusion-exclusion
 to the monomorphism counts; monomorphism counts are easy to obtain with matrix algebra.
 """
-function triplet_motif_counts(A::Matrix, isomorphism=true)
+function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
     n = n1
@@ -90,7 +90,7 @@ end
 
 Compute change in motif counts if edge `index` is toggled
 """
-function delta_triplet_motif_counts(A::Matrix, index, isomorphism=true)
+function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
     n = n1
@@ -98,7 +98,7 @@ function delta_triplet_motif_counts(A::Matrix, index, isomorphism=true)
     u, v = index
     Duv = 2 * A[u,v] - 1
     common_post = A[u, :] .* A[v, :]
-    common_pre = A[:, i] .* A[:, v]
+    common_pre = A[:, u] .* A[:, v]
     D_u = A[u, :]' * A[:, u]
     D_v = A[v, :]' * A[:, v]
     out_u = sum(A[u, :])
@@ -106,9 +106,10 @@ function delta_triplet_motif_counts(A::Matrix, index, isomorphism=true)
     out_v = sum(A[v, :])
     in_v = sum(A[v, :])
 
+    # delta is change in subgraph monomorphisms
     delta = zeros(Int, 16)
 
-    delta[1] = 0  # empty graph
+    # delta[1] = 0  # empty graph monomorphism count does not change
 
     delta[2] = (n - 2)
     delta[3] = (n - 2) * A[v, u]
@@ -128,7 +129,7 @@ function delta_triplet_motif_counts(A::Matrix, index, isomorphism=true)
 
     if A[v, u] != 0
         delta[14] = delta[14] + A[u, :]' * A[:, v] + A[v, :]' * A[:, u]
-        delta[12] = delta[12] + common_post' * A[:, v] + common_post' A[:, u] + A[u, :]' * common_pre + A[v, :]' * common_pre
+        delta[12] = delta[12] + common_post' * A[:, v] + common_post' * A[:, u] + A[u, :]' * common_pre + A[v, :]' * common_pre
         delta[16] = common_post' * common_pre
     end
 

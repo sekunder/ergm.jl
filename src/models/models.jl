@@ -85,6 +85,9 @@ end
 
 export Model, get_sample_space, get_state, set_state, get_statistics, test_update, apply_update, get_parameters, set_parameters
 
+include("motif_counts.jl")
+export triplet_motif_counts, delta_triplet_motif_counts
+
 # export pre-defined models
 include("simple.jl")
 export SimpleModel
@@ -92,5 +95,7 @@ include("subset.jl")
 export SubsetModel
 include("directed_spatial_triplet.jl")
 export DirectedSpatialTripletModel
+include("scaffoldtriplet.jl")
+export ScaffoldedTripletModel
 
 end
