@@ -2,7 +2,21 @@ using ergm.models
 using ergm.sampling
 using ProgressMeter
 
-function equilibrium_expectation(model::Model, target_statistics::Vector{Float64}, estimation_steps::Int, learning_rate::Vector{Float64})
+function cond_showprogress_helper(c, e)
+    quote
+        if $c
+            @showprogress $e
+        else
+            $e
+        end
+    end
+end
+
+macro cond_showprogress(c, e)
+    esc(cond_showprogress_helper(c, e))
+end
+
+function equilibrium_expectation(model::Model, target_statistics::Vector{Float64}, estimation_steps::Int, learning_rate::Vector{Float64}; progress::Bool=false)
     c1 = 1e-2
     p1 = 2
     p2 = 1/2
@@ -17,7 +31,7 @@ function equilibrium_expectation(model::Model, target_statistics::Vector{Float64
     Ds[1, :] = D
     fs = nothing
     
-    @showprogress for i ∈ 1:fitting_iterations
+    @cond_showprogress progress for i ∈ 1:fitting_iterations
         c2 = learning_rate[i]
 
         for _ ∈ 1:estimation_steps

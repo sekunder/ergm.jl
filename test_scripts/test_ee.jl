@@ -46,7 +46,7 @@ it = 40000
 lr_start = 5e-2
 lr_end = 2e-3
 lr = lr_start * (lr_end / lr_start) .^ ((0:it-1) ./ (it - 1))
-θs, Ds, fs = equilibrium_expectation(m, Es, 5000, lr)
+θs, Ds, fs = equilibrium_expectation(m, Es, 5000, lr; progress=true)
 
 # try to average away the inherent fluctuations
 # in θ you get with equilibrium expectation
