@@ -7,7 +7,7 @@ stores graphs as sparse arrays and it suited for large graphs with low edge dens
 
 ## Matrix Representation
 
-To keep things consistent, adjacency matrices of graphs will use the `i,j` entry to indicate the presence of edge `j -> i`.
+To keep things consistent, adjacency matrices of graphs will use the `i,j` entry to indicate the presence of edge `i -> j`.
 
 ## Pre-defined Sample Spaces
 
