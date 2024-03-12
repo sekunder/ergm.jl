@@ -3,6 +3,9 @@ using DataStructures
 using SparseArrays
 using LinearAlgebra
 
+# entry i,j counts the number of subgraphs of motif j that are isomorphic to motif i
+#                                               0 1 2 3 4 5 6
+#                             1 2 3 4 5 6 7 8 9 1 1 1 1 1 1 1
 const exact_to_over_3node  = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1; # 1  003  empty graph
                               0 1 2 2 2 2 3 3 3 3 4 4 4 4 5 6; # 2  012  single edge
                               0 0 1 0 0 0 1 1 0 0 2 1 1 1 2 3; # 3  102  single reciprocal
@@ -25,6 +28,7 @@ const over_to_exact_3node = Matrix{Int}(inv(exact_to_over_3node))
     triplet_motif_counts(A::Matrix, isomorphism=True, include_empty=False)
 
 Compute the number of occurrences of each isomorphism class of nonempty three-node graphs in A.
+Assumes that `A[i,j]` indicates the presence of edge `j -> i`
 
 By default, counts subgraph _isomorphisms_, that is, the number of _induced_ copies of each motif.
 To turn off this behavior, pass `isomorphism=false`
@@ -46,7 +50,7 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     n1 == n2 || error("Matrix must be square")
     n = n1
     m = sum(A)  # number of edges
-    diverging = A' * A  # common inputs
+    div = A' * A  # common inputs. div[i,j] = # k such that k->i and k->j for i != j. div[i,i] = in-degree of i.
     converging = A * A'  # common outputs
     A2 = A ^ 2
     trA2 = tr(A2)
@@ -61,7 +65,7 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
 
     counts[2] = (n - 2) * m  # single edge + disconnected third node
     counts[3] = (n - 2) * trA2 ÷ 2  # single reciprocal connection + disconnected third node
-    counts[4] = (sum(diverging) - m) ÷ 2  # diverging
+    counts[4] = (sum(div) - m) ÷ 2  # diverging
     counts[5] = (sum(converging) - m) ÷ 2  # converging
     
     
@@ -73,7 +77,7 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     counts[10] = tr(A3) ÷ 3  # directed cycle
     
     counts[11] = (sum(U2) - tr(U2)) ÷ 2  # reciprocal path
-    counts[12] = sum(U .* diverging) ÷ 2  # diverging to a reciprocal
+    counts[12] = sum(U .* div) ÷ 2  # diverging to a reciprocal
     counts[13] = sum(U .* converging) ÷ 2  # converging from a reciprocal
     counts[14] = sum(U .* A2)  # path + recriprocal
 
