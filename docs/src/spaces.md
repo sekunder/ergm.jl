@@ -5,6 +5,10 @@ For example, we may wish to only consider directed graphs with binary edges and 
 which corresponds to graphs of type `spaces.SparseDirectedGraph`. This particular type also
 stores graphs as sparse arrays and it suited for large graphs with low edge density.
 
+## Matrix Representation
+
+To keep things consistent, adjacency matrices of graphs will use the `i,j` entry to indicate the presence of edge `j -> i`.
+
 ## Pre-defined Sample Spaces
 
 ```@docs
