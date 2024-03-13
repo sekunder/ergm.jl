@@ -28,7 +28,7 @@ const over_to_exact_3node = Matrix{Int}(inv(exact_to_over_3node))
     triplet_motif_counts(A::Matrix, isomorphism=True, include_empty=False)
 
 Compute the number of occurrences of each isomorphism class of nonempty three-node graphs in A.
-Assumes that `A[i,j]` indicates the presence of edge `j -> i`
+Assumes that `A[i,j]` indicates the presence of edge `i -> j`
 
 By default, counts subgraph _isomorphisms_, that is, the number of _induced_ copies of each motif.
 To turn off this behavior, pass `isomorphism=false`
@@ -48,16 +48,19 @@ to the monomorphism counts; monomorphism counts are easy to obtain with matrix a
 function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
+    any(A[diagind(A)] != 0) || error("Matrix must have nonzero diagonal")
     n = n1
     m = sum(A)  # number of edges
-    div = A' * A  # common inputs. div[i,j] = # k such that k->i and k->j for i != j. div[i,i] = in-degree of i.
-    converging = A * A'  # common outputs
+    # div[i,j] = # k such that k->i and k->j for i != j. div[i,i] = in-degree of i.
+    div = A' * A  # common inputs.
+    # conv[i,j] = #k such that i->k and j->k for i !=j. conv[i,i] = out-degree of i.
+    conv = A * A'  # common outputs
     A2 = A ^ 2
     trA2 = tr(A2)
     A3 = A ^ 3
-    U = A .* A'  # reciprocal connections only
-    D = sum(U; dims=2)  # bidirectional degree of each vertex
-    U2 = U ^ 2
+    R = A .* A'  # reciprocal connections only
+    # D = sum(R; dims=2)  # bidirectional degree of each vertex
+    R2 = R ^ 2
 
     counts = zeros(Int, 16)
 
@@ -66,24 +69,28 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     counts[2] = (n - 2) * m  # single edge + disconnected third node
     counts[3] = (n - 2) * trA2 ÷ 2  # single reciprocal connection + disconnected third node
     counts[4] = (sum(div) - m) ÷ 2  # diverging
-    counts[5] = (sum(converging) - m) ÷ 2  # converging
+    counts[5] = (sum(conv) - m) ÷ 2  # converging
     
     
     counts[6] = sum(A2) - trA2  # sum off-diagonal elements of A^2, counts two-step paths
-    counts[7] = sum(A .* D') - sum(U)  # reciprocal + incoming edge
-    counts[8] = sum(A .* D) - sum(U)  # reciprocal + outgoing edge
+    # counts[7] = sum(A .* D') - sum(R)  # reciprocal + incoming edge
+    # counts[8] = sum(A .* D) - sum(R)  # reciprocal + outgoing edge
+    # counts[7] = sum(A * R) - sum(D) ÷ 2
+    # counts[8] = sum(R * A) - sum(D) ÷ 2
+    counts[7] = sum(A * R) - tr(A * R)
+    counts[8] = sum(R * A) - tr(R * A)
     counts[9] = sum(A .* A2)  # directed clique; a -> b, a -> c, b-> c
 
     counts[10] = tr(A3) ÷ 3  # directed cycle
     
-    counts[11] = (sum(U2) - tr(U2)) ÷ 2  # reciprocal path
-    counts[12] = sum(U .* div) ÷ 2  # diverging to a reciprocal
-    counts[13] = sum(U .* converging) ÷ 2  # converging from a reciprocal
-    counts[14] = sum(U .* A2)  # path + recriprocal
+    counts[11] = (sum(R2) - tr(R2)) ÷ 2  # reciprocal path
+    counts[12] = sum(R .* div) ÷ 2  # diverging to a reciprocal
+    counts[13] = sum(R .* conv) ÷ 2  # converging from a reciprocal
+    counts[14] = sum(R .* A2)  # path + recriprocal
 
     
-    counts[15] = sum(U2 .* U)  # reciprocal path + edge
-    counts[16] = tr(U2 * U) ÷ 6  # fully connected 
+    counts[15] = sum(R2 .* A)  # reciprocal path + edge
+    counts[16] = tr(R2 * R) ÷ 6  # fully connected 
 
     counts = isomorphism ? over_to_exact_3node[2:16, 2:16] * counts[2:16] : counts[2:16]
 end

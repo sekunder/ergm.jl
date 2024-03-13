@@ -1,7 +1,9 @@
-using ergm.spaces
+# using ergm.spaces
 using ergm.models
 using StatsBase
 using LinearAlgebra
+
+
 
 # verifying that motif counting works
 begin
@@ -11,8 +13,8 @@ begin
     # innerproducts = X * X'
     # Dsquared = (diag(innerproducts) .+ diag(innerproducts)') - 2innerproducts
     # A = Dsquared .<= r^2
-    # A[diagind(A)] .= false
-    A = rand(n,n) .< 0.1
+    A = rand(n,n) .< 0.4
+    A[diagind(A)] .= false
     rho = sum(A) / (n * (n-1))
 end
 
@@ -42,6 +44,7 @@ begin
     brute_force_counts
 end
 
+# include("../src/models/motif_counts.jl")
 algebra_counts = triplet_motif_counts(A)
 
 sum(brute_force_counts) ==  binomial(n, 3)
