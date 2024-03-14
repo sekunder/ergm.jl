@@ -25,10 +25,11 @@ const exact_to_over_3node  = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1; # 1  003  empty g
 const over_to_exact_3node = Matrix{Int}(inv(exact_to_over_3node))
 
 """
-    triplet_motif_counts(A::Matrix, isomorphism=True, include_empty=False)
+    triplet_motif_counts(A::AbstractMatrix, isomorphism=True, include_empty=False)
 
 Compute the number of occurrences of each isomorphism class of nonempty three-node graphs in A.
-Assumes that `A[i,j]` indicates the presence of edge `i -> j`
+Assumes that `A[i,j]` indicates the presence of edge `i -> j`. Will return incorrect results if `A`
+has any nonzero diagonal entries.
 
 By default, counts subgraph _isomorphisms_, that is, the number of _induced_ copies of each motif.
 To turn off this behavior, pass `isomorphism=false`
@@ -48,7 +49,7 @@ to the monomorphism counts; monomorphism counts are easy to obtain with matrix a
 function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
-    any(A[diagind(A)] != 0) || error("Matrix must have nonzero diagonal")
+    # any(A[diagind(A)] .!= 0) || error("Matrix must have nonzero diagonal")
     n = n1
     m = sum(A)  # number of edges
     # div[i,j] = # k such that k->i and k->j for i != j. div[i,i] = in-degree of i.
@@ -68,10 +69,9 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
 
     counts[2] = (n - 2) * m  # single edge + disconnected third node
     counts[3] = (n - 2) * trA2 ÷ 2  # single reciprocal connection + disconnected third node
+
     counts[4] = (sum(div) - m) ÷ 2  # diverging
     counts[5] = (sum(conv) - m) ÷ 2  # converging
-    
-    
     counts[6] = sum(A2) - trA2  # sum off-diagonal elements of A^2, counts two-step paths
     # counts[7] = sum(A .* D') - sum(R)  # reciprocal + incoming edge
     # counts[8] = sum(A .* D) - sum(R)  # reciprocal + outgoing edge
@@ -107,7 +107,7 @@ function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
     n = n1
     # m = sum(A)
     u, v = index
-    Duv = 2 * A[u,v] - 1
+    Duv = 2 * A[u,v] - 1  # 
     common_post = A[u, :] .* A[v, :]
     common_pre = A[:, u] .* A[:, v]
     D_u = A[u, :]' * A[:, u]
@@ -122,12 +122,15 @@ function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
 
     # delta[1] = 0  # empty graph monomorphism count does not change
 
-    delta[2] = (n - 2)
-    delta[3] = (n - 2) * A[v, u]
+    # single connected pairs
+    delta[2] = (n - 2)  # single edge
+    delta[3] = (n - 2) * A[v, u]  # single reciprocal
 
-    delta[4] = out_u - A[u, v]
+    # two edges and all nodes connected
+    delta[4] = out_u - A[u, v]  # two edges diverging from a single source
     delta[5] = in_v - A[u, v]
     delta[6] = in_u + out_v - 2 * A[v,u]
+
     delta[7] = D_v + A[v, u] * (in_u + in_v - 2 * A[u, v] - 2 * A[v, u] + 1)
     delta[8] = D_u + A[v, u] * (out_u + out_v - 2 * A[u, v] - 2 * A[v, u] + 1)
     delta[9] = sum(common_post) + sum(common_pre) + A[u, :]' * A[:, v]

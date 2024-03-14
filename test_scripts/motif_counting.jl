@@ -1,7 +1,10 @@
-# using ergm.spaces
-using ergm.models
-using StatsBase
-using LinearAlgebra
+begin
+    # using ergm.spaces
+    using ergm.models
+    using StatsBase
+    using LinearAlgebra
+    using BenchmarkTools
+end
 
 
 
@@ -19,16 +22,17 @@ begin
 end
 
 begin
-    _triplet_codes = [
-        1,  2,  2,  3,  2,  4,  6,  8,
-        2,  6,  5,  7,  3,  8,  7, 11,
-        2,  6,  4,  8,  5,  9,  9, 13,
-        6, 10,  9, 14,  7, 14, 12, 15,
-        2,  5,  6,  7,  6,  9, 10, 14,
-        4,  9,  9, 12,  8, 13, 14, 15,
-        3,  7,  8, 11,  7, 12, 14, 15,
-        8, 14, 13, 15, 11, 15, 15, 16
-    ]
+_triplet_codes = [
+    1,  2,  2,  3,  2,  4,  6,  8,
+    2,  6,  5,  7,  3,  8,  7, 11,
+    2,  6,  4,  8,  5,  9,  9, 13,
+    6, 10,  9, 14,  7, 14, 12, 15,
+    2,  5,  6,  7,  6,  9, 10, 14,
+    4,  9,  9, 12,  8, 13, 14, 15,
+    3,  7,  8, 11,  7, 12, 14, 15,
+    8, 14, 13, 15, 11, 15, 15, 16
+]
+function exhaustive_count(A::AbstractMatrix)
     brute_force_counts = zeros(Int, 16)
     for u in 1:n
         for v in u+1:n
@@ -44,9 +48,30 @@ begin
     brute_force_counts
 end
 
-# include("../src/models/motif_counts.jl")
-algebra_counts = triplet_motif_counts(A)
+brute_force_counts = exhaustive_count(A)
+end
 
 sum(brute_force_counts) ==  binomial(n, 3)
 
+# include("../src/models/motif_counts.jl")
+algebra_counts = triplet_motif_counts(A)
+
+# FIRST TEST: COUNTING TRIPLETS
+all(brute_force_counts[2:end] .== algebra_counts)
+
+# check benchmarks 
+# @benchmark brute_force_counts = exhaustive_count(A)
+# @benchmark algebra_counts = triplet_motif_counts(A)
+
+
+# now change several edges and see what happens
+# T = 100
+# for t in 1:T
+u,v = sample(1:n, 2; replace=false)
+delta = delta_triplet_motif_counts(A, (u,v))
+algebra_counts = algebra_counts - delta
+A[u,v] = !A[u,v]
+brute_force_counts = exhaustive_count(A)
+
+# SECOND TEST: COUNTING CHANGES
 brute_force_counts[2:end] .== algebra_counts
