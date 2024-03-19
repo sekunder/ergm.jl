@@ -24,6 +24,8 @@ const exact_to_over_3node  = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1; # 1  003  empty g
                               0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1] # 16 300  all six edges
 const over_to_exact_3node = Matrix{Int}(inv(exact_to_over_3node))
 
+export exact_to_over_3node, over_to_exact_3node
+
 """
     triplet_motif_counts(A::AbstractMatrix, isomorphism=True, include_empty=False)
 
@@ -46,7 +48,7 @@ of the empty graph E_2 as subgraphs.
 Counting induced subgraphs amounts to applying a fancy variation of the principle of inclusion-exclusion
 to the monomorphism counts; monomorphism counts are easy to obtain with matrix algebra.
 """
-function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
+function triplet_motif_counts(A::AbstractMatrix; isomorphism=true, include_empty=false)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
     # any(A[diagind(A)] .!= 0) || error("Matrix must have nonzero diagonal")
@@ -92,32 +94,39 @@ function triplet_motif_counts(A::AbstractMatrix, isomorphism=true)
     counts[15] = sum(R2 .* A)  # reciprocal path + edge
     counts[16] = tr(R2 * R) ÷ 6  # fully connected 
 
-    counts = isomorphism ? over_to_exact_3node[2:16, 2:16] * counts[2:16] : counts[2:16]
+    if include_empty
+        counts = isomorphism ? over_to_exact_3node * counts : counts
+    else
+        counts = isomorphism ? over_to_exact_3node[2:16, 2:16] * counts[2:16] : counts[2:16]
+    end
 end
 
 
 """
-    delta_triplet_motif_counts(A::Matrix, index, isomorphism=True)
+    delta_triplet_motif_counts(A::AbstractMatrix, index; isomorphism=true, include_empty=false)
 
-Compute change in motif counts if edge `index` is toggled
+Compute change in motif counts if edge `index` is toggled.
+Specifically, if `B = A` except that `B[u,v] = !A[u,v]`,
+then this returns motif counts in `B` minus motif counts in `A`.
 """
-function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
+function delta_triplet_motif_counts(A::AbstractMatrix, index; isomorphism=true, include_empty=false)
     n1, n2 = size(A)
     n1 == n2 || error("Matrix must be square")
     n = n1
     # m = sum(A)
     u, v = index
-    Duv = 2 * A[u,v] - 1  # 
-    common_post = A[u, :] .* A[v, :]
-    common_pre = A[:, u] .* A[:, v]
-    D_u = A[u, :]' * A[:, u]
-    D_v = A[v, :]' * A[:, v]
-    out_u = sum(A[u, :])
-    in_u = sum(A[:, u])
-    out_v = sum(A[v, :])
-    in_v = sum(A[v, :])
+    Δuv = 1 - 2 * A[u,v]
+    common_post = A[u, :] .* A[v, :] # bitvector indicating common out-neighbors of u,v
+    common_pre = A[:, u] .* A[:, v]  # bitvector indicating common in-neighbors of u,v
+    bideg_u = A[u, :]' * A[:, u] # number of reciprocal partners of u
+    bideg_v = A[v, :]' * A[:, v] # number of reciprocal partners of v
+    out_u = sum(A[u, :]) # number of out-neighbors of u
+    in_u = sum(A[:, u])  # number of in-neighbors of u
+    out_v = sum(A[v, :]) # number of out-neighbors of v
+    in_v = sum(A[:, v])  # number if in-neighbors of v
 
     # delta is change in subgraph monomorphisms
+    # It counts how many subgraphs of A include ordered pair uv and are isomorphic to each motif.
     delta = zeros(Int, 16)
 
     # delta[1] = 0  # empty graph monomorphism count does not change
@@ -128,14 +137,16 @@ function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
 
     # two edges and all nodes connected
     delta[4] = out_u - A[u, v]  # two edges diverging from a single source
-    delta[5] = in_v - A[u, v]
-    delta[6] = in_u + out_v - 2 * A[v,u]
+    delta[5] = in_v - A[u, v]  # two edges converging to a single sink
+    delta[6] = in_u + out_v - 2 * A[v,u]  # two step path
 
-    delta[7] = D_v + A[v, u] * (in_u + in_v - 2 * A[u, v] - 2 * A[v, u] + 1)
-    delta[8] = D_u + A[v, u] * (out_u + out_v - 2 * A[u, v] - 2 * A[v, u] + 1)
+    # delta[7] = bideg_v + A[v, u] * (in_u + in_v - 2 * A[u, v] - 2 * A[v, u] + 1)
+    delta[7] = bideg_v + A[v, u] * (in_u + in_v - 2 * A[u, v] - 1)
+    # delta[8] = bideg_u + A[v, u] * (out_u + out_v - 2 * A[u, v] - 2 * A[v, u] + 1)
+    delta[8] = bideg_u + A[v, u] * (out_u + out_v - 2 * A[u, v] - 1)
     delta[9] = sum(common_post) + sum(common_pre) + A[u, :]' * A[:, v]
     delta[10] = A[v, :]' * A[:, u]
-    delta[11] = A[v, u] * (D_u + D_v - 2 * A[u, v])
+    delta[11] = A[v, u] * (bideg_u + bideg_v - 2 * A[u, v])
     delta[12] = common_post' * A[:, v] + A[v, u] * sum(common_pre)
     delta[13] = A[u, :]' * common_pre + A[v, u] * sum(common_post)
     delta[14] = common_post' * A[:, u] + A[v, :]' * common_pre
@@ -143,10 +154,14 @@ function delta_triplet_motif_counts(A::AbstractMatrix, index, isomorphism=true)
 
     if A[v, u] != 0
         delta[14] = delta[14] + A[u, :]' * A[:, v] + A[v, :]' * A[:, u]
-        delta[12] = delta[12] + common_post' * A[:, v] + common_post' * A[:, u] + A[u, :]' * common_pre + A[v, :]' * common_pre
+        delta[15] = delta[15] + common_post' * A[:, v] + common_post' * A[:, u] + A[u, :]' * common_pre + A[v, :]' * common_pre
         delta[16] = common_post' * common_pre
     end
 
-    delta = delta * Duv
-    delta = isomorphism ? over_to_exact_3node[2:16, 2:16] * delta[2:16] : delta[2:16]
+    delta = delta * Δuv
+    if include_empty
+        delta = isomorphism ? over_to_exact_3node * delta : delta
+    else
+        delta = isomorphism ? over_to_exact_3node[2:16, 2:16] * delta[2:16] : delta[2:16]
+    end
 end
