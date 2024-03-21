@@ -64,7 +64,11 @@ sum(brute_force_counts) ==  binomial(n, 3)
 algebra_counts = triplet_motif_counts(A; include_empty=true)
 
 # FIRST TEST: COUNTING TRIPLETS
-all(brute_force_counts .== algebra_counts)
+if all(brute_force_counts .== algebra_counts)
+    println("PASS: algebra-powered counting matches brute-force counting")
+else
+    println("FAIL: mismatch in counting motifs $(findall(brute_force_counts .!= algebra_counts))")
+end
 
 # check benchmarks 
 # @benchmark brute_force_counts = exhaustive_count(A)
@@ -75,23 +79,37 @@ all(brute_force_counts .== algebra_counts)
 # successes = 0
 # for t in 1:T
     # u,v = sample(1:n, 2; replace=false)
-    u,v = 1,2  # toggle an edge I *know* is involved in a full triplet
-    delta = delta_triplet_motif_counts(A, (u,v); include_empty=true)
-    algebra_counts = algebra_counts + delta
-    Acopy = copy(A)
-    Acopy[u,v] = !Acopy[u,v]
-    new_brute_force_counts = exhaustive_count(Acopy)
-    new_algebra_counts = triplet_motif_counts(Acopy; include_empty=true)
+    # u,v = 1,2  # toggle an edge I *know* is involved in a full triplet
+    # delta = delta_triplet_motif_counts(A, (u,v); include_empty=true)
+    # algebra_counts = algebra_counts + delta
+    # Acopy = copy(A)
+    # Acopy[u,v] = !Acopy[u,v]
+    # new_brute_force_counts = exhaustive_count(Acopy)
+    # new_algebra_counts = triplet_motif_counts(Acopy; include_empty=true)
 
-    # SECOND TEST: COUNTING CHANGES
-    # successes += all(brute_force_counts[2:end] .== algebra_counts)
-    new_brute_force_counts .== algebra_counts
-    all(new_brute_force_counts .== new_algebra_counts)
-    (new_brute_force_counts - brute_force_counts) .== delta
+    # # SECOND TEST: COUNTING CHANGES
+    # # successes += all(brute_force_counts[2:end] .== algebra_counts)
+    # new_brute_force_counts .== algebra_counts
+    # all(new_brute_force_counts .== new_algebra_counts)
+    # (new_brute_force_counts - brute_force_counts) .== delta
 
-    delta_mono_algebra = exact_to_over_3node * delta
-    delta_mono_brute = exact_to_over_3node * (new_brute_force_counts - brute_force_counts)
-    delta_mono_algebra .== delta_mono_brute
-    findall(delta_mono_algebra .!= delta_mono_brute)
+    # delta_mono_algebra = exact_to_over_3node * delta
+    # delta_mono_brute = exact_to_over_3node * (new_brute_force_counts - brute_force_counts)
+    # delta_mono_algebra .== delta_mono_brute
+    # findall(delta_mono_algebra .!= delta_mono_brute)
 # end
 # println("Successfully counted motif change $(100 * successes / T)% of the time")
+successes = 0
+trials = 0
+for i in 1:n
+    for j in 1:n
+        i == j && continue
+        delta = delta_triplet_motif_counts(A, (i, j); include_empty=true)
+        algebra_counts = algebra_counts + delta
+        A[i,j] = !A[i,j]
+        brute_force_counts = exhaustive_count(A)
+        successes += all(algebra_counts .== brute_force_counts)
+        trials += 1
+    end
+end
+println("Correctly computed change in stats $(100 * successes / trials) % of the time")
