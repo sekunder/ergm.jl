@@ -47,5 +47,7 @@ export SampleSpace, random_index
 
 include("sparse_directed.jl")
 export SparseDirectedGraph
+include("scaffolded_directed.jl")
+export ScaffoldedDirectedGraph
 
 end

@@ -21,7 +21,7 @@ println("Sampling ground-truth...")
 gs, ss = sample(sampler, 1000; progress=true)
 Es = mean(ss, dims=1)[1, :]
 p = full_m.motif_normalizations[1] * Es[1] / (n * (n - 1))
-println(p)
+println("Edge density: $p")
 
 function sample_er(p)
     A = sprand(Bool, n, n, p)
@@ -79,3 +79,11 @@ function plot_results(ps)
     end
     fig
 end
+
+plot_results([1,2])
+plot_results([3,4])
+plot_results([5,6])
+plot_results([7,8])
+plot_results([9,10])
+plot_results([11,12])
+plot_results([13,14])

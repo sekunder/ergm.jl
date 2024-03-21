@@ -12,9 +12,9 @@ mutable struct DirectedSpatialTripletModel <: Model
     motif_normalizations::Vector{Float64}
     cached_motif_counts::Dict
 
-    state::SparseDirectedGraph
-    local_state::SparseDirectedGraph
-    local_state_t::SparseDirectedGraph
+    state::SparseDirectedGraph  # current state of the system
+    local_state::SparseDirectedGraph    # subgraph of state consisting of only local connections
+    local_state_t::SparseDirectedGraph  # transpose of local state
     
     @doc """
         DirectedSpatialTripletModel(node_embedding::Matrix{Float64}, motif_radius::Float64) 
