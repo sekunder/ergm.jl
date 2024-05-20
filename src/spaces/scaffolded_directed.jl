@@ -49,9 +49,11 @@ mutable struct ScaffoldedDirectedGraph{N} <: SampleSpace
 end
 
 function Base.show(io::IO, G::ScaffoldedDirectedGraph{N}) where N
-    m_scaff = length(G.scaffold_tuples)
+    m_prealloc = length(G.scaffold_tuples)
     m_other = length(G.other_edges)
-    print(io, "ScaffoldedDirectedGraph($N nodes, $(m_scaff+m_other) edges ($m_scaff preallocated + $m_other other))")
+    m_scaff = sum(G.scaffold_edges)
+    # print(io, "ScaffoldedDirectedGraph($N nodes, $(m_prealloc+m_other) edges ($m_prealloc preallocated + $m_other other))")
+    print(io, "ScaffoldedDirectedGraph($N nodes, $(m_scaff + m_other) edges ($m_scaff / $m_prealloc preallocated, $m_other other)")
 end
 
 function random_index(::ScaffoldedDirectedGraph{N}) where N
