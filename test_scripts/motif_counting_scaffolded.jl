@@ -109,3 +109,32 @@ for i in 1:n
 end
 end
 println("Correctly computed change in stats $(100 * successes / trials) % of the time")
+
+# WORK IN PROGRESS
+# Now, let's check if ScaffoldedTripletModel does what I think it does
+begin
+    M = ScaffoldedTripletModel(S, zeros(15))
+    println(M)
+    println(M.state)
+    println()
+
+    set_state(M, G)
+    println(M)
+    println(M.state)
+
+    all(M.motif_counts[3:end] .== algebra_counts[4:end]) || println("ERROR: Motif count mismatch between model and algebra")
+
+    # TODO what am I comparing against?
+    # TODO how do I measure performance?
+    successes = 0
+    trials = 0
+    for i in 1:n
+        for j in 1:n
+            i == j && continue
+            Δedgecount = 1 - 2 * M.state[(i,j)]
+            Δrecipcount = 1 - 2 * M.state[(i,j)] * M.state[(j,i)]
+            new_counts = test_update(M, (i, j), !M.state[(i, j)], normalized=false)
+        end
+    end
+end
+
