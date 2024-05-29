@@ -71,16 +71,18 @@ end
 brute_force_counts = exhaustive_count(G.scaffold_edges)
 end
 
-sum(brute_force_counts) ==  binomial(n, 3) || println("ERROR: brute force counts did not find all triplets")
+begin
+    sum(brute_force_counts) ==  binomial(n, 3) || println("ERROR: brute force counts did not find all triplets")
 
-# include("../src/models/motif_counts.jl")
-algebra_counts = triplet_motif_counts(G.scaffold_edges; include_empty=true)
+    # include("../src/models/motif_counts.jl")
+    algebra_counts = triplet_motif_counts(G.scaffold_edges; include_empty=true)
 
-# FIRST TEST: COUNTING TRIPLETS
-if all(brute_force_counts .== algebra_counts)
-    println("PASS: algebra-powered counting matches brute-force counting")
-else
-    println("FAIL: mismatch in counting motifs $(findall(brute_force_counts .!= algebra_counts))")
+    # FIRST TEST: COUNTING TRIPLETS
+    if all(brute_force_counts .== algebra_counts)
+        println("PASS: algebra-powered counting matches brute-force counting")
+    else
+        println("FAIL: mismatch in counting motifs $(findall(brute_force_counts .!= algebra_counts))")
+    end
 end
 
 # check benchmarks 
@@ -89,52 +91,74 @@ end
 # @benchmark brute_force_counts = exhaustive_count(G.scaffold_edges)
 # @benchmark algebra_counts = triplet_motif_counts(G.scaffold_edges)
 
-begin
+# begin
+#     successes = 0
+#     trials = 0
+#     for i in 1:n
+#         for j in 1:n
+#             i == j && continue
+#             # delta = delta_triplet_motif_counts(A, (i, j); include_empty=true)
+#             if S[i,j]
+#                 delta = delta_triplet_motif_counts(G.scaffold_edges, (i,j); include_empty=true)
+#                 algebra_counts = algebra_counts + delta
+#             end
+#             # A[i,j] = !A[i,j]
+#             G[(i,j)] = !G[(i,j)]
+#             brute_force_counts = exhaustive_count(G.scaffold_edges)
+#             successes += all(algebra_counts .== brute_force_counts)
+#             trials += 1
+#         end
+#     end
+#     println("Correctly computed change in stats $(100 * successes / trials) % of the time")
+# end
+
+# WORK IN PROGRESS
+# Now, let's check if ScaffoldedTripletModel does what I think it does
+
+M = ScaffoldedTripletModel(S, zeros(15))
+println(M)
+println(M.state)
+println()
+
+set_state(M, G)
+println(M)
+println(M.state)
+
+algebra_counts = triplet_motif_counts(M.state.scaffold_edges; include_empty=true)
+all(M.motif_counts[3:end] .== algebra_counts[4:end]) || println("ERROR: Motif count mismatch between model and algebra")
+
+i,j = 1,4
+new_counts = test_update(M, (i, j), !M.state[(i,j)], normalized=false)
+if S[i,j]
+    delta = delta_triplet_motif_counts(M.state.scaffold_edges, (i,j); include_empty=true)
+    algebra_counts = algebra_counts + delta
+end
+apply_update(M, (i,j), !M.state[(i,j)])
+all(algebra_counts[4:end] .== M.motif_counts[3:end])
+algebra_counts[4:end] .== M.motif_counts[3:end]
+
+# TODO what am I comparing against?
+# TODO how do I measure performance (as in, computational time/memory. and again, vs. what?)?
 successes = 0
 trials = 0
 for i in 1:n
     for j in 1:n
         i == j && continue
-        # delta = delta_triplet_motif_counts(A, (i, j); include_empty=true)
+        # Δedgecount = 1 - 2 * M.state[(i,j)]
+        # Δrecipcount = 1 - 2 * M.state[(i,j)] * M.state[(j,i)]
+        new_counts = test_update(M, (i, j), !M.state[(i, j)], normalized=false)
         if S[i,j]
-            delta = delta_triplet_motif_counts(G.scaffold_edges, (i,j); include_empty=true)
+            delta = delta_triplet_motif_counts(M.state.scaffold_edges, (i,j); include_empty=true)
             algebra_counts = algebra_counts + delta
         end
-        # A[i,j] = !A[i,j]
-        G[(i,j)] = !G[(i,j)]
-        brute_force_counts = exhaustive_count(G.scaffold_edges)
-        successes += all(algebra_counts .== brute_force_counts)
+        apply_update(M, (i,j), !M.state[(i,j)])
+        success = all(M.motif_counts[3:end] .== algebra_counts[4:end])
+        # success || println("FAILED UPDATE: edge $i,$j")
+        success && println("SUCCESSFUL UPDATE: edge $i, $j")
+        successes += success
         trials += 1
     end
 end
-end
 println("Correctly computed change in stats $(100 * successes / trials) % of the time")
 
-# WORK IN PROGRESS
-# Now, let's check if ScaffoldedTripletModel does what I think it does
-begin
-    M = ScaffoldedTripletModel(S, zeros(15))
-    println(M)
-    println(M.state)
-    println()
-
-    set_state(M, G)
-    println(M)
-    println(M.state)
-
-    all(M.motif_counts[3:end] .== algebra_counts[4:end]) || println("ERROR: Motif count mismatch between model and algebra")
-
-    # TODO what am I comparing against?
-    # TODO how do I measure performance?
-    successes = 0
-    trials = 0
-    for i in 1:n
-        for j in 1:n
-            i == j && continue
-            Δedgecount = 1 - 2 * M.state[(i,j)]
-            Δrecipcount = 1 - 2 * M.state[(i,j)] * M.state[(j,i)]
-            new_counts = test_update(M, (i, j), !M.state[(i, j)], normalized=false)
-        end
-    end
-end
 
