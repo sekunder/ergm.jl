@@ -3,8 +3,6 @@ import StatsBase
 using SparseArrays
 using LinearAlgebra
 
-abstract type SampleSpace end
-
 mutable struct ScaffoldedUndirectedGraph{N} <: SampleSpace
     scaffold_edges::SparseMatrixCSC{Bool, Int}
     scaffold_tuples::Set{Tuple{Int, Int}}
@@ -55,7 +53,7 @@ function Base.show(io::IO, G::ScaffoldedUndirectedGraph{N}) where N
 end
 
 function random_index(::ScaffoldedUndirectedGraph{N}) where N
-    index = sample(1:N, 2, replace=false)
+    index = StatsBase.sample(1:N, 2, replace=false)
     (min(index...), max(index...))
 end
 
