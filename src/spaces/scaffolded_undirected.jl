@@ -49,7 +49,7 @@ function Base.show(io::IO, G::ScaffoldedUndirectedGraph{N}) where N
     m_prealloc = length(G.scaffold_tuples)
     m_other = length(G.other_edges)
     m_scaff = sum(G.scaffold_edges) ÷ 2  # Each edge is counted twice in the adjacency matrix
-    print(io, "ScaffoldedUndirectedGraph($N nodes, $(m_scaff + m_other) edges ($m_scaff preallocated, $m_other other))")
+    print(io, "ScaffoldedUndirectedGraph($N nodes, $(m_scaff + m_other) edges ($m_scaff / $m_prealloc preallocated, $m_other other))")
 end
 
 function random_index(::ScaffoldedUndirectedGraph{N}) where N
@@ -68,15 +68,19 @@ function Base.setindex!(g::ScaffoldedUndirectedGraph, value::Bool, index::Tuple{
 
     if value
         if index ∈ g.scaffold_tuples
-            setindex!(g.scaffold_edges, value, index...)
-            setindex!(g.scaffold_edges, value, reverse(index)...)
+            g.scaffold_edges[index...] = value
+            g.scaffold_edges[reverse(index)...] = value
+            # setindex!(g.scaffold_edges, value, index...)
+            # setindex!(g.scaffold_edges, value, reverse(index)...)
         else
             push!(g.other_edges, index)
         end
     else
         if g.scaffold_edges[index] && index ∈ g.scaffold_tuples
-            setindex!(g.scaffold_edges, value, index...)
-            setindex!(g.scaffold_edges, value, reverse(index)...)
+            g.scaffold_edges[index...] = value
+            g.scaffold_edges[reverse(index)...] = value
+            # setindex!(g.scaffold_edges, value, index...)
+            # setindex!(g.scaffold_edges, value, reverse(index)...)
         else
             delete!(g.other_edges, index)
         end

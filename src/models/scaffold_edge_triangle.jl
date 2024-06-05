@@ -56,9 +56,9 @@ end
 function set_state(m::ScaffoldedEdgeTriangleModel, state::ScaffoldedUndirectedGraph{N} where N)
     m.state = state
 
-    motif_counts = [sum(state.scaffold_edges) + length(state.other_edges), tr(state.scaffold_edges^3)]
+    m.motif_counts = [sum(state.scaffold_edges) + length(state.other_edges), tr(state.scaffold_edges^3)]
 
-    model.cached_motif_counts = Dict()
+    m.cached_motif_counts = Dict()
 end
 
 function test_update(m::ScaffoldedEdgeTriangleModel, index, value; normalized=true)
