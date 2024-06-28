@@ -41,7 +41,7 @@ function get_parameters(m::ScaffoldedEdgeTriangleModel)
     m.parameters
 end
 
-function set_parameters(m::ScaffoldedEdgeTriangleModel, paramaters)
+function set_parameters(m::ScaffoldedEdgeTriangleModel, parameters::Vector{Float64})
     m.parameters = parameters
 end
 
