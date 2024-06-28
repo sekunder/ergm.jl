@@ -50,4 +50,7 @@ export SparseDirectedGraph
 include("scaffolded_directed.jl")
 export ScaffoldedDirectedGraph
 
+include("scaffolded_undirected.jl")
+export ScaffoldedUndirectedGraph
+
 end

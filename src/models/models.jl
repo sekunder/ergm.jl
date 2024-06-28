@@ -62,7 +62,7 @@ function does not return the new sufficient statistics, since they can now be co
 using `get_stats` because the model state was updated.
 """
 function apply_update(model::Model, index::Any, value::Any)
-    error("unimplemented")   
+    error("apply_update($(type(model))) unimplemented")   
 end
 
 """
@@ -97,5 +97,7 @@ include("directed_spatial_triplet.jl")
 export DirectedSpatialTripletModel
 include("scaffoldtriplet.jl")
 export ScaffoldedTripletModel
+include("scaffold_edge_triangle.jl")
+export ScaffoldedEdgeTriangleModel
 
 end

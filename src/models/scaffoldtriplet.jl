@@ -9,7 +9,9 @@ mutable struct ScaffoldedTripletModel <: Model
     # adj::ScaffoldedDirectedGraph
     parameters::Vector{Float64}
 
-    motif_counts::Vector{Int}   # raw motif counts
+    motif_counts::Vector{Int}   # raw motif counts, except:
+                                # motif_counts[1] = total number of edges
+                                # motif_counts[2] = total number of reciprocal edges
     motif_normalizations::Vector{Float64}
     cached_motif_counts::Dict   # possible motif counts if changes are made
 
@@ -105,19 +107,23 @@ function get_statistics(model::ScaffoldedTripletModel)
     model.motif_counts ./ model.motif_normalizations
 end
 
-function set_state(model::ScaffoldedTripletModel, state::ScaffoldedDirectedGraph)
+function set_state(model::ScaffoldedTripletModel, state::ScaffoldedDirectedGraph{N}) where N
     model.state = copy(state)
 
     # what needs to be happen:
-    # 1. TODO Compute the stats of the masked adjacency matrix and store them
-    model.motif_counts = triplet_motif_counts(model.state.scaffold_edges)
-    # for other_edge in model.state.other_edges
-    #     scaff_stats[1] += 1
-    # end
-    model.motif_counts[1] += length(model.state.other_edges)
+    # 1. Compute the stats of the masked adjacency matrix
+    # 2. Set motif_counts[1] = total number of edges (*not* the induced single-edge triplets!)
+    # 3. Set motif_counts[2] = total number of reciprocal edges (*not* the induced two-edge triplets!)
+    uncorrected_motif_counts = triplet_motif_counts(model.state.scaffold_edges, isomorphism=false)
+    # model.motif_counts = triplet_motif_counts(model.state.scaffold_edges)
+    model.motif_counts = over_to_exact_3node[2:16, 2:16] * uncorrected_motif_counts
+    
+    # model.motif_counts[1] += length(model.state.other_edges)
+    model.motif_counts[1] = uncorrected_motif_counts[1] ÷ (N - 2) + length(model.state.other_edges)
+    model.motif_counts[2] = uncorrected_motif_counts[2] ÷ (N - 2)
     for edge in model.state.other_edges
         # count reciprocal pairs where at least one edge is outside the scaffold.
-        model.motif_counts[1] += model.state[edge[2], edge[1]]
+        model.motif_counts[1] += model.state[(edge[2], edge[1])]
     end
     
     # 2. Invalidate cache
