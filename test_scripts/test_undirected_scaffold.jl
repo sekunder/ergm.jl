@@ -24,6 +24,7 @@ end
 
 half_n = 20
 n = 2 * half_n
+total_scaffold_edges = half_n * (half_n - 1)
 
 S = [ones(half_n, half_n) zeros(half_n, half_n);
      zeros(half_n, half_n) ones(half_n, half_n)]
@@ -31,7 +32,8 @@ for i in 1:n
     S[i,i] = 0
 end
 
-M = ScaffoldedEdgeTriangleModel(S, [1.0, -50.0])
+theta = [0.0, 0.0]
+M = ScaffoldedEdgeTriangleModel(S, theta)
 M.state
 sampler = GibbsSampler(M, burn_in=n^3, sample_interval=10 * n^2)
 graphs, stats = ergm.sampling.sample(sampler, 100, progress=true)
@@ -65,15 +67,24 @@ scaled_stats = stats .* [1 n]
 
 
 As = [matrix_form(G) for G in graphs]
-densities = cat([[sum(A) / n^2 tr(A^3) / n^3] for A in As]..., dims=1)
+Ss = [G.scaffold_edges for G in graphs]
+densities = cat([[sum(A) / (n * (n-1)) tr(A^3) / (n * (n-1) * (n-2))] for A in As]..., dims=1)
+scaff_only_densities = cat([[sum(M) / (n * (n-1))  tr(M^3) / (n * (n-1) * (n-2))] for M in Ss]..., dims=1)
 
-xs = 0:0.01:1
+xs = 0.01:0.01:1
 er_curve = xs .^ 3
 er_upper = sqrt.(xs) .^ 3
-er_lower = max.(xs .* (2xs .- 1), 0)
-plot(xs, er_curve, color="gray")
-plot!(xs, er_upper, color="gray", linestyle=:dash)
-plot!(xs, er_lower, color="gray", linestyle=:dash)
-scatter!(densities[:,1], densities[:,2])
-scaffolded_densities = scaled_stats ./ [(n^2 / 2) (n^3 /6)]
-scatter!(scaffolded_densities[:,1], scaffolded_densities[:,2], marker=:x)
+# er_lower = max.(xs .* (2xs .- 1), 0)
+xs_lower = 0.5:0.0001:1
+er_lower = xs_lower .* (2xs_lower .- 1)
+plot(xs, er_curve,
+     color="gray",  label="E-R", legend=:topleft, title="$theta")  # xaxis=:log, yaxis=:log,
+plot!(xs, er_upper, color="gray", linestyle=:dash, label=false)
+plot!(xs_lower[2:end], er_lower[2:end], color="gray", linestyle=:dash, label=false)
+scatter!(densities[:,1], densities[:,2], label="Samples")
+# scaffolded_densities = scaled_stats ./ [(n^2 / 2) (n^3 /6)]
+# scatter!(scaffolded_densities[:,1], scaffolded_densities[:,2], marker=:x)
+scatter!(scaff_only_densities[:,1], scaff_only_densities[:, 2], marker=:x, label="Scaffold")
+
+# using Dates
+# savefig("figures/scaffolded_ET_$(now()).png")
