@@ -99,6 +99,7 @@ end
     # findall(delta_mono_algebra .!= delta_mono_brute)
 # end
 # println("Successfully counted motif change $(100 * successes / T)% of the time")
+begin
 successes = 0
 trials = 0
 for i in 1:n
@@ -111,5 +112,6 @@ for i in 1:n
         successes += all(algebra_counts .== brute_force_counts)
         trials += 1
     end
+end
 end
 println("Correctly computed change in stats $(100 * successes / trials) % of the time")
