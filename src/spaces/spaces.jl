@@ -41,7 +41,17 @@ function Base.copy(g::SampleSpace)
     SparseGraph(copy(g.adjacency))
 end
 
-export SampleSpace, random_index
+
+"""
+    adjacency_matrix(g::SampleSpace)
+
+The adjacency matrix of the current state of `g`.
+"""
+function adjacency_matrix(g::SampleSpace)
+    error("adjacency_matrix not implemented for type $(typeof(g))")
+end
+
+export SampleSpace, random_index, adjacency_matrix
     
 # export pre-defined models
 
