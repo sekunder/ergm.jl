@@ -18,7 +18,7 @@ mutable struct ScaffoldedDirectedGraph{N} <: SampleSpace
     """
     function ScaffoldedDirectedGraph{N}() where N
         _scaffold_edges = spzeros(Bool, N, N)
-        new{N}(_scaffold_edges, Set(), Set(), Set())
+        new{N}(_scaffold_edges, Set{Tuple{Int, Int}}(), Set{Tuple{Int, Int}}())
     end
 
     """
@@ -71,7 +71,7 @@ end
 function Base.setindex!(g::ScaffoldedDirectedGraph, value::Bool, index::Tuple{Int, Int})
     # length(index) <= 2 || error("Can't set index $index")
     # i, j = index
-    length(index) == 2 && index[1] == index[2] && error("Can't set self-loops in ScaffoldedDirectedGraph")
+    index[1] == index[2] && error("Can't set self-loops in ScaffoldedDirectedGraph")
 
     if value
         if index ∈ g.scaffold_tuples
@@ -93,4 +93,12 @@ end
 function Base.copy(g::ScaffoldedDirectedGraph)
     # error("Base.copy is incorrectly implemented for ScaffoldedDirectedGraph")
     ScaffoldedDirectedGraph(copy(g.scaffold_edges), false, copy(g.other_edges))
+end
+
+function adjacency_matrix(g::ScaffoldedDirectedGraph)
+    A = copy(g.scaffold_edges)
+    for edge in g.other_edges
+        A[edge...] = true
+    end
+    return A
 end
