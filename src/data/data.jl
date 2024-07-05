@@ -61,4 +61,34 @@ function load_spatial_graph(filename::String) :: Tuple{SparseDirectedGraph, Matr
     G, X
 end
 
+
+"""
+    read_edgelist_file(filename; directed=false)
+
+Reads an edgelist file into a sparse, Boolean adjacency matrix.
+
+Each edge is a pair of integers separated by whitespace. Each line contains one edge.
+The largest integer that appears is treated as the number of nodes.
+
+First, it reads the entire file into a matrix. Then, uses the columns of that matrix to instantiate a sparse matrix using `sparse`.
+If `directed=false`, the data is used as-is and the resulting sparse matrix is returned.
+If `directed=true`, the data is duplicated with all edges reversed, so each edge is represented in the "forward" and "backward" direction.
+"""
+function read_edgelist_file(filename; directed=false)
+    n_lines = countlines(filename)
+    data = zeros(Int, n_lines, 2)
+    for (line_no, line) in enumerate(eachline(filename))
+        tks = split(line)
+        data[line_no, 1] = parse(Int, tks[1])
+        data[line_no, 2] = parse(Int, tks[2])
+    end
+    n = maximum(data)
+    if directed
+        return sparse(data[:, 1], data[:, 2], trues(n_lines), n, n)
+    else
+        data = cat(data, data[:,[2,1]], dims=1)
+        return sparse(data[:, 1], data[:, 2], trues(2 * n_lines), n, n)
+    end
+end
+
 end
