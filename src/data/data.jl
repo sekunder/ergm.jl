@@ -4,6 +4,8 @@ using ergm.spaces
 using SparseArrays
 using PyCall
 
+export example_graph, example_graph_names
+
 """
 Save a spatially embedded graph to a file.
 
@@ -90,5 +92,36 @@ function read_edgelist_file(filename; directed=false)
         return sparse(data[:, 1], data[:, 2], trues(2 * n_lines), n, n)
     end
 end
+
+
+const ergm_example_files = Dict(
+    "karate" => "karate.txt",
+    "larvalMB" => "larval_MB_undirected.txt",
+    "larvalMB0.0" => "larval_MB_undirected_scaffold_0.0.txt",
+    "larvalMB0.05" => "larval_MB_undirected_scaffold_0.05.txt",
+    "larvalMB0.1" => "larval_MB_undirected_scaffold_0.1.txt",
+    "larvalMB0.25" => "larval_MB_undirected_scaffold_0.25.txt",
+    "larvalMB0.5" => "larval_MB_undirected_scaffold_0.25.txt",
+    "larvalMB0.75" => "larval_MB_undirected_scaffold_0.75.txt",
+    "larvalMB1.0" => "larval_MB_undirected_scaffold_1.0.txt")
+
+"""
+    example_graph(name)
+
+The adjacency matrix of the named sample graph. By default `name="karate"`
+
+Options:
+ - `"karate"`: Zachary's Karate Club network
+ - `"larvalMB"`: Larval mushroom body network
+ - `"larvalMB*"` where `*` can be one of `0.0`, `0.05`, `0.1`, `0.25`, `0.5`, `0.75`: The larval mushroom body network, only including those edges which connect nodes in the same cluster.
+
+ Full list of example graph names can be accessed with `example_graph_names()`
+"""
+function example_graph(name="karate")
+    filename = get(ergm_example_files, name, "Invalid name: $name")
+    return read_edgelist_file("src/data/$filename")
+end
+
+example_graph_names() = keys(ergm_example_files)
 
 end
