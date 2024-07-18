@@ -12,6 +12,7 @@ mutable struct ScaffoldedTripletModel <: Model
     motif_counts::Vector{Int}   # raw motif counts, except:
                                 # motif_counts[1] = total number of edges
                                 # motif_counts[2] = total number of reciprocal edges
+                                # that is, motifs[2] = sum(A .* A')/2 where A is the current adjacency matrix.
     motif_normalizations::Vector{Float64}
     cached_motif_counts::Dict   # possible motif counts if changes are made
 
@@ -20,7 +21,7 @@ mutable struct ScaffoldedTripletModel <: Model
     # local_state_t::SparseDirectedGraph
 
     @doc """
-        ScaffoldedTripletModel(scaffold::SparseDirectedGraph)
+        ScaffoldedTripletModel(scaffold, parameters, [empty_init=true])
     
     The sufficient statistics of this ERGM are the density of edges, the density of reciprocal edges, and the densities
     of the 13 connected triplet subgraphs in the same order as they are presented in the figure in the documentation
@@ -51,6 +52,9 @@ mutable struct ScaffoldedTripletModel <: Model
             motifs = zeros(Int, 15)
         else
             motifs = triplet_motif_counts(scaffold)
+            S = _scaffold.scaffold_edges
+            motifs[1] = sum(S)
+            motifs[2] = sum(S .* S') ÷ 2
         end
 
         n = size(scaffold, 1)
@@ -142,9 +146,10 @@ function test_update(model::ScaffoldedTripletModel, index::Tuple{Int, Int}, valu
 
     # update the edge count and reciprocal edge count
     new_stats[1] += value - model.state[index]
-    if model.state[reverse(index)]
-        new_stats[2] += value - model.state[index]
-    end
+    new_stats[2] += (value - model.state[index]) * model.state[reverse(index)]
+    # if model.state[reverse(index)]
+    #     new_stats[2] += value - model.state[index]
+    # end
 
     if index ∈ model.state.scaffold_tuples
         if model.state[index] != value
