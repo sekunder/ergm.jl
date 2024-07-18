@@ -3,7 +3,9 @@ using ergm.sampling
 using Statistics
 using LinearAlgebra
 
-function monte_carlo_gradient_ascent(model::Model, target_statistics::Vector{Float64}, sampler_parameters::Dict, gradient_samples::Int, fitting_iterations::Int, learning_rate::Float64)
+function monte_carlo_gradient_ascent(model::Model,
+    target_statistics::Vector{Float64}, sampler_parameters::Dict, 
+    gradient_samples::Int, fitting_iterations::Int, learning_rate::Float64)
     sampler = GibbsSampler(model; sampler_parameters...)
     p = length(get_parameters(model))
     θ = zeros(p)
