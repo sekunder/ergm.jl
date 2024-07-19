@@ -76,7 +76,8 @@ First, it reads the entire file into a matrix. Then, uses the columns of that ma
 If `directed=false`, the data is used as-is and the resulting sparse matrix is returned.
 If `directed=true`, the data is duplicated with all edges reversed, so each edge is represented in the "forward" and "backward" direction.
 """
-function read_edgelist_file(filename; directed=false)
+function read_edgelist_file(filename; directed::Bool=false, n_nodes::Integer=0)
+    println("Trying to read file $filename")
     n_lines = countlines(filename)
     data = zeros(Int, n_lines, 2)
     for (line_no, line) in enumerate(eachline(filename))
@@ -85,6 +86,7 @@ function read_edgelist_file(filename; directed=false)
         data[line_no, 2] = parse(Int, tks[2])
     end
     n = maximum(data)
+    n = max(n, n_nodes)
     if directed
         return sparse(data[:, 1], data[:, 2], trues(n_lines), n, n)
     else
@@ -119,7 +121,8 @@ Options:
 """
 function example_graph(name="karate")
     filename = get(ergm_example_files, name, "Invalid name: $name")
-    return read_edgelist_file("src/data/$filename")
+    n = occursin("larvalMB", name) ? 365 : 0
+    return read_edgelist_file("src/data/$filename", n_nodes=n)
 end
 
 example_graph_names() = keys(ergm_example_files)
