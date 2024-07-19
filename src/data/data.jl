@@ -77,7 +77,6 @@ If `directed=false`, the data is used as-is and the resulting sparse matrix is r
 If `directed=true`, the data is duplicated with all edges reversed, so each edge is represented in the "forward" and "backward" direction.
 """
 function read_edgelist_file(filename; directed::Bool=false, n_nodes::Integer=0)
-    println("Trying to read file $filename")
     n_lines = countlines(filename)
     data = zeros(Int, n_lines, 2)
     for (line_no, line) in enumerate(eachline(filename))
