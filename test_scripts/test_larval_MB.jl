@@ -28,7 +28,7 @@ end
 chi = "0.5"
 scaffold = data.example_graph("larvalMB" * chi)
 larvalMB = data.example_graph("larvalMB")
-n = 50
+n = 100
 
 small_scaffold = scaffold[1:n, 1:n]
 small_larvalMB = larvalMB[1:n, 1:n]
