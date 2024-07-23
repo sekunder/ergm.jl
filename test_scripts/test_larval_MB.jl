@@ -8,6 +8,7 @@ using Statistics
 using SparseArrays
 using LinearAlgebra
 using StatsPlots
+using LaTeXStrings
 
 function matrix_form(G::ScaffoldedUndirectedGraph)
     A = copy(G.scaffold_edges)
@@ -28,7 +29,7 @@ end
 chi = "0.5"
 scaffold = data.example_graph("larvalMB" * chi)
 larvalMB = data.example_graph("larvalMB")
-n = 100
+n = 40
 
 small_scaffold = scaffold[1:n, 1:n]
 small_larvalMB = larvalMB[1:n, 1:n]
@@ -54,6 +55,10 @@ thetas = inference.monte_carlo_gradient_ascent(
 )
 
 log_message("Monte Carlo Gradient Ascent completed.", verbose)
+println("Thetas:")
+println()
+println(thetas)
+println()
 println("Final thetas: ", thetas[end, :])
 
 # set_parameters(model, thetas[end, :])
@@ -84,5 +89,12 @@ scatter!(p, [real_density[1]], [real_density[2]], markershape = :star, markersiz
 scatter!(p, [scaffold_density[1]], [scaffold_density[2]], markershape = :star, markersize = 5, label="Original Scaffold Densities")
 xlabel!("Edge Density")
 ylabel!("Triangle Density")
+
+trajectory_fig = plot(thetas[:,1], thetas[:,2],
+                      title="Theta trajectory", label=L"\theta_t",
+                      xlabel=L"\theta_1", ylabel=L"\theta_2")
+# scatter!(thetas[:,1], thetas[:,2], zcolor=1:iterations, label=false)
+
+# save p, trajectory_fig
 
 display(p)
