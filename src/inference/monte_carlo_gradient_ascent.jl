@@ -3,15 +3,31 @@ using ergm.sampling
 using Statistics
 using LinearAlgebra
 
+function cond_showprogress_helper(c, e)
+    quote
+        if $c
+            @showprogress $e
+        else
+            $e
+        end
+    end
+end
+
+macro cond_showprogress(c, e)
+    esc(cond_showprogress_helper(c, e))
+end
+
 function monte_carlo_gradient_ascent(model::Model,
     target_statistics::Vector{Float64}, sampler_parameters::Dict, 
-    gradient_samples::Int, fitting_iterations::Int, learning_rate::Float64)
+    gradient_samples::Int, fitting_iterations::Int, learning_rate::Float64;
+    progress::Bool=false)
+
     sampler = GibbsSampler(model; sampler_parameters...)
     p = length(get_parameters(model))
     θ = zeros(p)
     θs = zeros(fitting_iterations, p)
     
-    @showprogress for i ∈ 1:fitting_iterations
+    @cond_showprogress progress for i ∈ 1:fitting_iterations
         _, ss = sample(sampler, gradient_samples)
         current_statistics = mean(ss, dims=1)[1, :]
         ∇log_likelihood = target_statistics - current_statistics;
@@ -23,7 +39,10 @@ function monte_carlo_gradient_ascent(model::Model,
     θs
 end
 
-function monte_carlo_gradient_ascent_hessian(model::Model, target_statistics::Vector{Float64}, sampler_parameters::Dict, gradient_samples::Int, fitting_iterations::Int, learning_rate::Float64, regularization::Float64 = 1e-5)
+function monte_carlo_gradient_ascent_hessian(model::Model, target_statistics::Vector{Float64},
+                                             sampler_parameters::Dict, gradient_samples::Int, fitting_iterations::Int,
+                                             learning_rate::Float64, regularization::Float64 = 1e-5;
+                                             progress=false)
     sampler = GibbsSampler(model; sampler_parameters...)
     p = length(get_parameters(model))
     θ = zeros(p)
@@ -39,7 +58,7 @@ function monte_carlo_gradient_ascent_hessian(model::Model, target_statistics::Ve
         return grad, H
     end
     
-    @showprogress for i ∈ 1:fitting_iterations
+    @cond_showprogress progress for i ∈ 1:fitting_iterations
         ∇log_likelihood, H = gradient_and_hessian(θ)
         if det(H) < 1e-10  # Check for near-singular matrices
             println("Hessian is nearly singular at iteration $i, determinant: $(det(H))")
