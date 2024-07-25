@@ -103,14 +103,14 @@ for chi in ["0.0", "0.05", "0.1", "0.25", "0.5", "0.75", "1.0"]
     xlabel!("Edge Density")
     ylabel!("Triangle Density")
 
-    savefig(p, "larval_MB_"*chi*"_densities.pdf")
+    savefig(p, "larval_MB_$(chi)_$(n)_densities.pdf")
 
     trajectory_fig = plot(thetas[:,1], thetas[:,2],
                         title="Theta trajectory", label=L"\theta_t",
                         xlabel=L"\theta_1", ylabel=L"\theta_2")
     # scatter!(thetas[:,1], thetas[:,2], zcolor=1:iterations, label=false)
 
-    savefig(trajectory_fig, "larval_MB_"*chi*"_trajectory.pdf")
+    savefig(trajectory_fig, "larval_MB_$(chi)_$(n)_trajectory.pdf")
 
     log_message("Figures saved to " * pwd(), verbose)
 
